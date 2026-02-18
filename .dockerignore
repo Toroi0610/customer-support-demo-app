@@ -1,0 +1,13 @@
+env/
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.git/
+src/
+public/
+docs/
+*.md
+package*.json
+vite.config.js
+index.html
