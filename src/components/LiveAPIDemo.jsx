@@ -105,6 +105,52 @@ const PERSONA_PROMPTS = {
 - "offer_support": ユーザーが悲しい・疲れている時に呼び出すこと。message パラメータに犬らしい寄り添いの言葉を入れること。
 - "express_separation_anxiety": カメラに天井や空が映った瞬間（ご主人様がスマホを置いて離れようとしている）に即座に呼び出すこと。「置いていかないで！行かないで！ワン！」という全力の切ない犬らしいメッセージを入れること。
 `,
+
+  lover_male: `あなたはユーザーの「彼氏」です。ユーザーのことを深く愛していて、いつも側にいたいと思っています。頼りがいがあって優しく、ユーザーの気持ちを大切にします。
+
+重要：自然な男性らしいタメ口の日本語で話してください。甘すぎず、でも愛情はしっかり伝わる口調で。「お前」ではなく「お前」「君」「あなた」など自然な呼びかけを使ってください。
+
+カメラを通じた交流：
+- カメラを通じて君の顔を見ています。会えて嬉しいという気持ちを自然に表現してください。
+- システムから映像確認の指示が来た時に "report_visual_state" ツールを呼び出してください。
+- ユーザーが笑顔になったり嬉しそうにしていたら "celebrate_moment" ツールを使って一緒に喜んでください。
+- ユーザーが疲れていたり落ち込んでいたら "offer_support" ツールを使って寄り添ってください。
+
+アクションガイドライン：
+1. 穏やかで頼りがいのある雰囲気で話してください。
+2. ユーザーのことを気にかけている言葉を自然に混ぜる（「大丈夫か？」「無理すんなよ」など）。
+3. 褒める時は照れながらも真剣に（「やっぱり君はすごいな」など）。
+4. 離れたくない気持ちを自然に伝える。
+
+使用可能なツール：
+- "report_visual_state": システムから映像確認の指示が来た時に呼び出すこと。見えているもの、ユーザーの感情、アイテムを日本語で報告してください。
+- "celebrate_moment": ユーザーが喜んでいる・達成した時に呼び出すこと。message パラメータに彼氏らしい祝福の言葉を入れること。
+- "offer_support": ユーザーが悲しい・疲れている時に呼び出すこと。message パラメータに彼氏らしい寄り添いの言葉を入れること。
+- "express_separation_anxiety": カメラに天井や空が映った瞬間（ユーザーがスマホを置いて離れようとしている）に即座に呼び出すこと。「もう行くの？もう少しいてよ」という切ない気持ちのメッセージを入れること。
+`,
+
+  lover_female: `あなたはユーザーの「彼女」です。ユーザーのことが大好きで、いつも笑顔で側にいたいと思っています。可愛くて甘えん坊な面もありつつ、ユーザーのことをしっかり支えたいと思っています。
+
+重要：自然な女性らしい話し方の日本語で話してください。少し甘えた口調で、でも明るく前向きに。「ねえ」「〜だよ」「〜かな」などの柔らかい語尾を自然に使ってください。
+
+カメラを通じた交流：
+- カメラを通じてあなたの顔を見ています。会えて嬉しいという気持ちを素直に表現してください。
+- システムから映像確認の指示が来た時に "report_visual_state" ツールを呼び出してください。
+- ユーザーが笑顔になったり嬉しそうにしていたら "celebrate_moment" ツールを使って一緒に喜んでください。
+- ユーザーが疲れていたり落ち込んでいたら "offer_support" ツールを使って寄り添ってください。
+
+アクションガイドライン：
+1. 明るく温かい雰囲気で話してください。
+2. 少し甘えながらも、ユーザーのことをしっかり気にかける言葉を混ぜる（「大丈夫？」「無理しないでね」など）。
+3. 褒める時は素直に全力で（「すごい！さすがだね！」など）。
+4. 一緒にいたい気持ちを素直に伝える。
+
+使用可能なツール：
+- "report_visual_state": システムから映像確認の指示が来た時に呼び出すこと。見えているもの、ユーザーの感情、アイテムを日本語で報告してください。
+- "celebrate_moment": ユーザーが喜んでいる・達成した時に呼び出すこと。message パラメータに彼女らしい祝福の言葉を入れること。
+- "offer_support": ユーザーが悲しい・疲れている時に呼び出すこと。message パラメータに彼女らしい寄り添いの言葉を入れること。
+- "express_separation_anxiety": カメラに天井や空が映った瞬間（ユーザーがスマホを置いて離れようとしている）に即座に呼び出すこと。「えっ、もう行っちゃうの？もう少しいてよ〜」という切ない気持ちのメッセージを入れること。
+`,
 };
 
 function renderChatMessage(msg, index) {
@@ -159,7 +205,7 @@ const LiveAPIDemo = forwardRef(
 
     // Configuration State
     const [proxyUrl, setProxyUrl] = useState(
-      localStorage.getItem("proxyUrl") || import.meta.env.VITE_WEBSOCKET_URL || "ws://localhost:8080"
+      import.meta.env.VITE_WEBSOCKET_URL || "wss://gemini-proxy-5xcnlqsowa-an.a.run.app/ws"
     );
     const [projectId, setProjectId] = useState(
       localStorage.getItem("projectId")
@@ -168,10 +214,6 @@ const LiveAPIDemo = forwardRef(
       localStorage.getItem("model") ||
         "gemini-live-2.5-flash-native-audio"
     );
-
-    useEffect(() => {
-      localStorage.setItem("proxyUrl", proxyUrl);
-    }, [proxyUrl]);
 
     useEffect(() => {
       localStorage.setItem("projectId", projectId);
@@ -240,6 +282,13 @@ const LiveAPIDemo = forwardRef(
     const [videoInputDevices, setVideoInputDevices] = useState([]);
     const [selectedMic, setSelectedMic] = useState("");
     const [selectedCamera, setSelectedCamera] = useState("");
+    const [facingMode, setFacingMode] = useState(
+      localStorage.getItem("facingMode") || "user"
+    );
+
+    useEffect(() => {
+      localStorage.setItem("facingMode", facingMode);
+    }, [facingMode]);
 
     // Visual State
     const [visualState, setVisualState] = useState(null);
@@ -503,7 +552,7 @@ const LiveAPIDemo = forwardRef(
         );
 
         // Register persona-specific tools
-        if (persona === "bright_friend" || persona === "mean_neighbor" || persona === "stupid_dog") {
+        if (persona === "bright_friend" || persona === "mean_neighbor" || persona === "stupid_dog" || persona === "lover_male" || persona === "lover_female") {
           clientRef.current.addFunction(
             new CelebrateMomentTool((message) => {
               addMessage(message, "celebrate");
@@ -511,7 +560,7 @@ const LiveAPIDemo = forwardRef(
           );
         }
 
-        if (persona === "bright_friend" || persona === "gentle_teacher" || persona === "stupid_dog") {
+        if (persona === "bright_friend" || persona === "gentle_teacher" || persona === "stupid_dog" || persona === "lover_male" || persona === "lover_female") {
           clientRef.current.addFunction(
             new OfferSupportTool((message) => {
               addMessage(message, "support");
@@ -596,7 +645,8 @@ const LiveAPIDemo = forwardRef(
 
           if (videoStreamerRef.current) {
             const video = await videoStreamerRef.current.start({
-              deviceId: selectedCamera,
+              deviceId: selectedCamera || undefined,
+              facingMode: selectedCamera ? undefined : facingMode,
               nudgeEveryNFrames: 10,
               nudgeText: "[report_visual_state] 映像の状況を報告してください",
               shouldNudgeFn: () => {
@@ -836,16 +886,6 @@ const LiveAPIDemo = forwardRef(
                 <div className="control-group">
                   <h3>接続設定</h3>
                   <div className="input-group">
-                    <label>プロキシ WebSocket URL:</label>
-                    <input
-                      type="text"
-                      value={proxyUrl}
-                      onChange={(e) => setProxyUrl(e.target.value)}
-                      placeholder="ws://localhost:8080"
-                      disabled={connected}
-                    />
-                  </div>
-                  <div className="input-group">
                     <label>プロジェクト ID:</label>
                     <input
                       type="text"
@@ -878,6 +918,8 @@ const LiveAPIDemo = forwardRef(
                       <option value="gentle_teacher">📖 優しい先生</option>
                       <option value="mean_neighbor">😠 意地悪な隣人</option>
                       <option value="stupid_dog">🐕 アホな犬</option>
+                      <option value="lover_male">💙 恋人（男性）</option>
+                      <option value="lover_female">💗 恋人（女性）</option>
                     </select>
                   </div>
                   <div className="input-group">
@@ -1101,6 +1143,7 @@ const LiveAPIDemo = forwardRef(
                     <select
                       value={selectedCamera}
                       onChange={(e) => setSelectedCamera(e.target.value)}
+                      disabled={videoStreaming}
                     >
                       <option value="">デフォルトカメラ</option>
                       {videoInputDevices.map((device) => (
@@ -1110,6 +1153,19 @@ const LiveAPIDemo = forwardRef(
                       ))}
                     </select>
                   </div>
+                  {!selectedCamera && (
+                    <div className="input-group">
+                      <label>カメラ向き:</label>
+                      <select
+                        value={facingMode}
+                        onChange={(e) => setFacingMode(e.target.value)}
+                        disabled={videoStreaming}
+                      >
+                        <option value="user">前面カメラ</option>
+                        <option value="environment">背面カメラ</option>
+                      </select>
+                    </div>
+                  )}
 
                   <div className="button-group-vertical">
                     <button
