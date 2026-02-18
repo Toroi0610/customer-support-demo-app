@@ -324,7 +324,7 @@ const LiveAPIDemo = forwardRef(
     }, []);
 
     const connect = async () => {
-      if (!proxyUrl && !projectId) {
+      if (!proxyUrl || !projectId) {
         alert("プロキシ URL とプロジェクト ID を入力してください");
         return;
       }
@@ -390,11 +390,13 @@ const LiveAPIDemo = forwardRef(
         clientRef.current.onReceiveResponse = handleMessage;
         clientRef.current.onErrorMessage = (error) => {
           console.error("Error:", error);
+          addMessage(`[接続エラー: ${error}]`, "system");
         };
         clientRef.current.onConnectionStarted = () => {
           setConnected(true);
         };
         clientRef.current.onClose = () => {
+          addMessage("[接続が切断されました]", "system");
           setConnected(false);
           disconnect();
         };
@@ -409,6 +411,8 @@ const LiveAPIDemo = forwardRef(
         audioPlayerRef.current.setVolume(volume / 100);
       } catch (error) {
         console.error("Connection failed:", error);
+        addMessage(`[接続失敗: ${error.message}]`, "system");
+        disconnect();
       }
     };
 
@@ -877,7 +881,7 @@ const LiveAPIDemo = forwardRef(
 
             <button
               onClick={connected ? disconnect : connect}
-              className={connected ? "disconnect" : "active"}
+              className={connected ? "active connected" : ""}
             >
               {connected ? "切断" : "接続"}
             </button>

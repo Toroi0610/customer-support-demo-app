@@ -225,6 +225,17 @@ button.disconnect:hover {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
+button.connected {
+  background-color: var(--google-green);
+  color: white;
+  border-color: var(--google-green);
+}
+
+button.connected:hover {
+  background-color: #0b8043;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
 .video-preview {
   width: 100%;
   background-color: black;
@@ -283,7 +294,7 @@ button.disconnect:hover {
 .system {
   font-style: italic;
   color: #5f6368;
-  font-size: 0;
+  font-size: 0.8rem;
 }
 
 .setup-json-display {
