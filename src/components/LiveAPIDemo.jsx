@@ -735,6 +735,18 @@ const LiveAPIDemo = forwardRef(
                 <div className="control-group">
                   <h3>Gemini 動作設定</h3>
                   <div className="input-group">
+                    <label>ペルソナ:</label>
+                    <select
+                      value={persona}
+                      onChange={(e) => setPersona(e.target.value)}
+                      disabled={connected}
+                    >
+                      <option value="bright_friend">😊 明るい友達</option>
+                      <option value="gentle_teacher">📖 優しい先生</option>
+                      <option value="mean_neighbor">😠 意地悪な隣人</option>
+                    </select>
+                  </div>
+                  <div className="input-group">
                     <label>システムインストラクション:</label>
                     <textarea
                       rows="3"
