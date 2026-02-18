@@ -27,9 +27,7 @@ DEBUG = False  # Set to True for verbose logging
 PORT = int(os.environ.get("PORT", 8080))
 
 # Authentication
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-ALLOWED_EMAILS_RAW = os.environ.get("ALLOWED_EMAILS", "")
-ALLOWED_EMAILS = set(e.strip() for e in ALLOWED_EMAILS_RAW.split(",") if e.strip())
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 
 
 def generate_access_token():
@@ -45,34 +43,16 @@ def generate_access_token():
         return None
 
 
-def verify_google_token(token_string: str) -> bool:
-    """Verifies a Google ID token and checks the email against the allowlist."""
-    if not GOOGLE_CLIENT_ID:
-        print("⚠️  GOOGLE_CLIENT_ID not set — skipping auth (dev mode)")
+def verify_app_password(password: str) -> bool:
+    """Verifies the app password. Skips check in dev mode (APP_PASSWORD not set)."""
+    if not APP_PASSWORD:
+        print("⚠️  APP_PASSWORD not set — skipping auth (dev mode)")
         return True
-    if not ALLOWED_EMAILS:
-        print("⚠️  ALLOWED_EMAILS not set — skipping auth (dev mode)")
+    if password == APP_PASSWORD:
+        print("✅ Access granted")
         return True
-    try:
-        from google.oauth2 import id_token as google_id_token
-        from google.auth.transport import requests as grequests
-        idinfo = google_id_token.verify_oauth2_token(
-            token_string,
-            grequests.Request(),
-            GOOGLE_CLIENT_ID,
-        )
-        email = idinfo.get("email", "")
-        if email not in ALLOWED_EMAILS:
-            print(f"🚫 Access denied for email: {email}")
-            return False
-        if DEBUG:
-            print(f"✅ Access granted for email: {email}")
-        else:
-            print("✅ Access granted")
-        return True
-    except Exception as e:
-        print(f"❌ Token verification failed: {e}")
-        return False
+    print("🚫 Access denied: wrong password")
+    return False
 
 
 class AiohttpWSAdapter:
@@ -265,8 +245,8 @@ async def ws_handler(request):
         await ws.close(code=1008, message=b"Invalid JSON")
         return ws
 
-    id_token = setup_data.get("id_token", "")
-    if not verify_google_token(id_token):
+    app_password = setup_data.get("app_password", "")
+    if not verify_app_password(app_password):
         await ws.close(code=4001, message=b"Unauthorized")
         return ws
 
@@ -303,14 +283,10 @@ async def handle_analyze_frame(request):
     if request.method == "OPTIONS":
         return web.Response(headers=headers)
 
-    # Verify Google ID token
+    # Verify app password
     auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        id_token = auth_header[7:]
-        if not verify_google_token(id_token):
-            return web.json_response({"error": "Unauthorized"}, status=401, headers=headers)
-    elif GOOGLE_CLIENT_ID and ALLOWED_EMAILS:
-        # Auth is configured but no token provided
+    password = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+    if not verify_app_password(password):
         return web.json_response({"error": "Unauthorized"}, status=401, headers=headers)
 
     try:

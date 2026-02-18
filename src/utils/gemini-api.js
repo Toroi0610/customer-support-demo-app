@@ -134,7 +134,7 @@ export class GeminiLiveAPI {
     this.enableFunctionCalls = false;
     this.functions = [];
     this.functionsMap = {};
-    this.idToken = null;
+    this.appPassword = null;
     this.previousImage = null;
     this.totalBytesSent = 0;
 
@@ -302,7 +302,7 @@ export class GeminiLiveAPI {
   sendInitialSetupMessages() {
     const serviceSetupMessage = {
       service_url: this.serviceUrl,
-      ...(this.idToken && { id_token: this.idToken }),
+      ...(this.appPassword && { app_password: this.appPassword }),
     };
     this.sendMessage(serviceSetupMessage);
 

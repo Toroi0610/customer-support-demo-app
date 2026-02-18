@@ -932,9 +932,40 @@ button.connected:hover {
   font-size: 0.95rem;
 }
 
-#google-signin-button {
+.password-form {
   display: flex;
+  gap: 8px;
   justify-content: center;
+  margin-top: 8px;
+}
+
+.password-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.password-input:focus {
+  border-color: #4285f4;
+}
+
+.password-submit {
+  padding: 10px 20px;
+  background: #4285f4;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.password-submit:hover {
+  background: #3367d6;
 }
 
 .signin-error {

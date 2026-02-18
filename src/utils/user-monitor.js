@@ -10,7 +10,7 @@ export class UserStateMonitor {
   /**
    * @param {Object} options
    * @param {string} options.analysisUrl - URL of the frame analysis endpoint
-   * @param {string|null} options.idToken - Google ID token for Authorization header (optional)
+   * @param {string|null} options.appPassword - App password for Authorization header (optional)
    * @param {string} options.projectId - Google Cloud project ID
    * @param {string} options.model - Gemini model ID for analysis
    * @param {number} options.intervalMs - Monitoring interval in milliseconds (default: 5000)
@@ -20,7 +20,7 @@ export class UserStateMonitor {
    */
   constructor(options = {}) {
     this.analysisUrl = options.analysisUrl || "http://localhost:8080/analyze-frame";
-    this.idToken = options.idToken || null;
+    this.appPassword = options.appPassword || null;
     this.projectId = options.projectId || "";
     this.model = options.model || "gemini-2.0-flash";
     this.intervalMs = options.intervalMs || 5000;
@@ -122,8 +122,8 @@ export class UserStateMonitor {
 
       // Send to analysis endpoint
       const authHeaders = { "Content-Type": "application/json" };
-      if (this.idToken) {
-        authHeaders["Authorization"] = `Bearer ${this.idToken}`;
+      if (this.appPassword) {
+        authHeaders["Authorization"] = `Bearer ${this.appPassword}`;
       }
       const response = await fetch(this.analysisUrl, {
         method: "POST",

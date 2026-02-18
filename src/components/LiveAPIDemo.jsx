@@ -130,7 +130,8 @@ function renderChatMessage(msg, index) {
 const LiveAPIDemo = forwardRef(
   ({ onConnectionChange, onAudioStreamChange }, ref) => {
     // Auth State
-    const [idToken, setIdToken] = useState(null);
+    const [appPassword, setAppPassword] = useState(null);
+    const [passwordInput, setPasswordInput] = useState("");
     const [authError, setAuthError] = useState(null);
 
     // Connection State
@@ -168,39 +169,13 @@ const LiveAPIDemo = forwardRef(
       localStorage.setItem("model", model);
     }, [model]);
 
-    // Initialize Google Sign-In
-    // Initialize Google Sign-In once on mount; renderButton targets the overlay div
-    // which only exists when idToken is null (overlay is shown). Re-running on
-    // token change is unnecessary because the overlay unmounts on sign-in.
-    useEffect(() => {
-      const initGoogleSignIn = () => {
-        if (!window.google) return;
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-          callback: (response) => {
-            setIdToken(response.credential);
-            setAuthError(null);
-          },
-        });
-        window.google.accounts.id.renderButton(
-          document.getElementById("google-signin-button"),
-          { theme: "outline", size: "large", locale: "ja" }
-        );
-      };
-
-      // Google script may not be loaded yet — poll until ready
-      if (window.google) {
-        initGoogleSignIn();
-      } else {
-        const interval = setInterval(() => {
-          if (window.google) {
-            clearInterval(interval);
-            initGoogleSignIn();
-          }
-        }, 100);
-        return () => clearInterval(interval);
+    const handlePasswordSubmit = (e) => {
+      e.preventDefault();
+      if (passwordInput.trim()) {
+        setAppPassword(passwordInput.trim());
+        setAuthError(null);
       }
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    };
 
     const [persona, setPersona] = useState(
       localStorage.getItem("persona") || "bright_friend"
@@ -462,7 +437,7 @@ const LiveAPIDemo = forwardRef(
       try {
         clientRef.current = new GeminiLiveAPI(proxyUrl, projectId, model);
 
-        clientRef.current.idToken = idToken;
+        clientRef.current.appPassword = appPassword;
         clientRef.current.systemInstructions = systemInstructions;
         clientRef.current.inputAudioTranscription = enableInputTranscription;
         clientRef.current.outputAudioTranscription = enableOutputTranscription;
@@ -523,9 +498,10 @@ const LiveAPIDemo = forwardRef(
         };
         clientRef.current.onClose = (event) => {
           if (event?.code === 4001) {
-            // Unauthorized — show error on sign-in overlay
-            setAuthError("アクセスが許可されていません");
-            setIdToken(null);
+            // Wrong password — return to password overlay with error
+            setAuthError("パスワードが正しくありません");
+            setAppPassword(null);
+            setPasswordInput("");
           } else {
             addMessage("[接続が切断されました]", "system");
           }
@@ -683,7 +659,7 @@ const LiveAPIDemo = forwardRef(
             const httpBase = wsUrl.replace(/^ws(s?):\/\//, "http$1://").replace(/\/ws$/, "");
             return `${httpBase}/analyze-frame`;
           })(),
-          idToken: idToken,
+          appPassword: appPassword,
           projectId: projectId,
           model: "gemini-2.0-flash",
           intervalMs: 5000,
@@ -780,15 +756,26 @@ const LiveAPIDemo = forwardRef(
       onAudioStreamChange?.(audioStreaming);
     }, [audioStreaming, onAudioStreamChange]);
 
-    // Show sign-in overlay if not authenticated
-    if (!idToken) {
+    // Show password overlay if not authenticated
+    if (!appPassword) {
       return (
         <div className="signin-overlay">
           <div className="signin-card">
             <h1>AI パートナー</h1>
             <p className="signin-subtitle">Gemini Live API 搭載</p>
-            <p className="signin-description">Googleアカウントでログインしてご利用ください</p>
-            <div id="google-signin-button"></div>
+            <form className="password-form" onSubmit={handlePasswordSubmit}>
+              <input
+                type="password"
+                className="password-input"
+                placeholder="パスワードを入力"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                autoFocus
+              />
+              <button type="submit" className="password-submit">
+                入室
+              </button>
+            </form>
             {authError && <p className="signin-error">{authError}</p>}
           </div>
         </div>
