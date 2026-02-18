@@ -61,4 +61,68 @@ export class UserStateManager {
 
     return "LOW";
   }
+
+  /**
+   * Evaluate an analysis result and decide whether the AI should speak.
+   * @param {Object} analysis - { emotion, status_key, observation }
+   * @returns {{ shouldSpeak: boolean, level: string, reason: string }}
+   */
+  evaluate(analysis) {
+    const emotion = analysis.emotion || "";
+    const level = this.classifyEmotion(emotion);
+    const now = Date.now();
+
+    // Record in history
+    this.emotionHistory.push({ emotion, level, timestamp: now, statusKey: analysis.status_key });
+    if (this.emotionHistory.length > this.historyMaxLength) {
+      this.emotionHistory.shift();
+    }
+
+    // First evaluation — always speak (greeting)
+    if (this.isFirstEvaluation) {
+      this.isFirstEvaluation = false;
+      this.lastSpokeAt = now;
+      return { shouldSpeak: true, level, reason: "initial" };
+    }
+
+    // HIGH — speak immediately
+    if (level === "HIGH") {
+      this.lastSpokeAt = now;
+      return { shouldSpeak: true, level, reason: "high_emotion" };
+    }
+
+    // MEDIUM — speak if consecutive
+    if (level === "MEDIUM") {
+      const consecutiveCount = this._getConsecutiveMediumCount();
+      if (consecutiveCount >= this.mediumConsecutiveThreshold) {
+        this.lastSpokeAt = now;
+        return { shouldSpeak: true, level, reason: "consecutive_medium" };
+      }
+      return { shouldSpeak: false, level, reason: "medium_not_consecutive" };
+    }
+
+    // LOW — speak if enough time has passed
+    const elapsed = this.lastSpokeAt ? now - this.lastSpokeAt : Infinity;
+    if (elapsed >= this.lowIntervalMs) {
+      this.lastSpokeAt = now;
+      return { shouldSpeak: true, level, reason: "low_interval" };
+    }
+
+    return { shouldSpeak: false, level, reason: "low_within_interval" };
+  }
+
+  /**
+   * Count consecutive MEDIUM entries at the end of history.
+   */
+  _getConsecutiveMediumCount() {
+    let count = 0;
+    for (let i = this.emotionHistory.length - 1; i >= 0; i--) {
+      if (this.emotionHistory[i].level === "MEDIUM") {
+        count++;
+      } else {
+        break;
+      }
+    }
+    return count;
+  }
 }
