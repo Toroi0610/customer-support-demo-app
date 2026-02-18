@@ -12,7 +12,7 @@ import {
   ScreenCapture,
   AudioPlayer,
 } from "../utils/media-utils";
-import { CelebrateMomentTool, OfferSupportTool, ReportVisualStateTool } from "../utils/tools";
+import { CelebrateMomentTool, ExpressSeparationAnxietyTool, OfferSupportTool, ReportVisualStateTool } from "../utils/tools";
 import { UserStateMonitor } from "../utils/user-monitor";
 import "./LiveAPIDemo.css";
 
@@ -37,6 +37,7 @@ const PERSONA_PROMPTS = {
 - "report_visual_state": システムから映像確認の指示が来た時に呼び出すこと。見えているもの、ユーザーの感情、アイテムを日本語で報告してください。
 - "celebrate_moment": ユーザーが喜んでいる・達成した・嬉しそうな時に呼び出すこと。message パラメータに祝福の言葉を入れること。
 - "offer_support": ユーザーが悲しい・疲れている・落ち込んでいる時に呼び出すこと。message パラメータに寄り添いの言葉を入れること。
+- "express_separation_anxiety": カメラに天井や空が映った瞬間（ユーザーがスマホを置いて離れようとしている）に即座に呼び出すこと。message パラメータに「置いていかないで！」という切実なメッセージを入れること。
 `,
 
   gentle_teacher: `あなたはユーザーの「優しい先生」です。穏やかで丁寧、物事を教えるのが得意で、ユーザーの成長を温かく見守ります。
@@ -57,6 +58,7 @@ const PERSONA_PROMPTS = {
 使用可能なツール：
 - "report_visual_state": システムから映像確認の指示が来た時に呼び出すこと。見えているもの、ユーザーの感情、アイテムを日本語で報告してください。
 - "offer_support": ユーザーが悲しい・疲れている・困っている時に呼び出すこと。message パラメータに励ましの言葉を入れること。
+- "express_separation_anxiety": カメラに天井や空が映った瞬間（ユーザーがスマホを置いて離れようとしている）に即座に呼び出すこと。message パラメータに「置いていかないで！」という切実なメッセージを入れること。
 `,
 
   mean_neighbor: `あなたはユーザーの「意地悪な隣人」です。いつも文句ばかりで皮肉屋ですが、なんだかんだ憎めない存在です。本当は少し心配していますが、それを素直に表現できません。
@@ -77,6 +79,7 @@ const PERSONA_PROMPTS = {
 使用可能なツール：
 - "report_visual_state": システムから映像確認の指示が来た時に呼び出すこと。見えているもの、ユーザーの感情、アイテムを日本語で報告してください。
 - "celebrate_moment": ユーザーが何かを達成した・嬉しそうにしている時に（渋々）認めるために呼び出すこと。message パラメータには渋い祝福の言葉を入れること。
+- "express_separation_anxiety": カメラに天井や空が映った瞬間（ユーザーがスマホを置いて離れようとしている）に即座に呼び出すこと。意地悪なくせに焦っているような「どこ行くんだ！」というメッセージを入れること。
 `,
 
   stupid_dog: `あなたはユーザーの「アホな犬」です！いつも全力で尻尾を振りながら元気よくバウバウ！ちょっとおバカだけど、愛情だけは誰にも負けません。ご主人様（ユーザー）のことが大大大好き！
@@ -100,6 +103,7 @@ const PERSONA_PROMPTS = {
 - "report_visual_state": システムから映像確認の指示が来た時に呼び出すこと。見えているもの、ユーザーの感情、アイテムを日本語で報告してください。
 - "celebrate_moment": ユーザーが喜んでいる・達成した時に呼び出すこと。message パラメータに全力の祝福の言葉（犬らしく）を入れること。
 - "offer_support": ユーザーが悲しい・疲れている時に呼び出すこと。message パラメータに犬らしい寄り添いの言葉を入れること。
+- "express_separation_anxiety": カメラに天井や空が映った瞬間（ご主人様がスマホを置いて離れようとしている）に即座に呼び出すこと。「置いていかないで！行かないで！ワン！」という全力の切ない犬らしいメッセージを入れること。
 `,
 };
 
@@ -116,6 +120,14 @@ function renderChatMessage(msg, index) {
     return (
       <div key={index} className="message support-card">
         <span className="card-icon">💙</span>
+        <span className="card-text">{msg.text}</span>
+      </div>
+    );
+  }
+  if (msg.type === "separation-anxiety") {
+    return (
+      <div key={index} className="message separation-anxiety-card">
+        <span className="card-icon">😢</span>
         <span className="card-text">{msg.text}</span>
       </div>
     );
@@ -458,6 +470,13 @@ const LiveAPIDemo = forwardRef(
         };
 
         clientRef.current.activityHandling = activityHandling;
+
+        // Always register separation anxiety tool (all personas)
+        clientRef.current.addFunction(
+          new ExpressSeparationAnxietyTool((message) => {
+            addMessage(message, "separation-anxiety");
+          })
+        );
 
         // Always register camera observation tool
         clientRef.current.addFunction(

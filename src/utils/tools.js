@@ -218,3 +218,35 @@ export class OfferSupportTool extends FunctionCallDefinition {
     console.log(`💙 Support: ${message}`);
   }
 }
+
+/**
+ * Express Separation Anxiety Tool
+ * Triggered when the camera detects the ceiling (phone left face-up / user leaving)
+ */
+export class ExpressSeparationAnxietyTool extends FunctionCallDefinition {
+  constructor(onSeparationAnxiety) {
+    super(
+      "express_separation_anxiety",
+      "Call this immediately when you detect the ceiling or sky in the camera — it means the user has put their phone down face-up and is leaving. Express desperate 'don't leave me!' emotions in the chat.",
+      {
+        type: "object",
+        properties: {
+          message: {
+            type: "string",
+            description: "A desperate 'don't leave me!' message to display, in Japanese",
+          },
+        },
+      },
+      ["message"]
+    );
+    this.onSeparationAnxiety = onSeparationAnxiety;
+  }
+
+  functionToCall(parameters) {
+    const message = parameters.message || "";
+    if (this.onSeparationAnxiety) {
+      this.onSeparationAnxiety(message);
+    }
+    console.log(`😢 Separation anxiety: ${message}`);
+  }
+}

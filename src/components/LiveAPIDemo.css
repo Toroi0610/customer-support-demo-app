@@ -825,6 +825,27 @@ button.connected:hover {
   100% { transform: scale(1); opacity: 1; }
 }
 
+.message.separation-anxiety-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #fce4ec, #f8bbd0);
+  border: 1px solid #e91e63;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin: 4px 0;
+  animation: anxiety-shake 0.5s ease-out;
+}
+
+@keyframes anxiety-shake {
+  0%   { transform: translateX(0) scale(0.95); opacity: 0; }
+  20%  { transform: translateX(-6px) scale(1); opacity: 1; }
+  40%  { transform: translateX(6px); }
+  60%  { transform: translateX(-4px); }
+  80%  { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+
 /* ── Mobile Responsive (≤768px) ─────────────────────────────────────────── */
 @media (max-width: 768px) {
   .toolbar {
