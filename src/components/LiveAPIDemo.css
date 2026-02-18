@@ -824,3 +824,71 @@ button.connected:hover {
   60% { transform: scale(1.05); }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* ── Mobile Responsive (≤768px) ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .toolbar {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .toolbar-left h1 {
+    font-size: 1rem;
+  }
+
+  .toolbar-center {
+    order: 3;
+    width: 100%;
+  }
+
+  .toolbar-right {
+    order: 2;
+  }
+
+  /* Dropdown: prevent overflow on small screens */
+  .dropdown-content {
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: 100vw;
+    box-sizing: border-box;
+  }
+
+  /* Main content: stack vertically */
+  .main-content {
+    flex-direction: column;
+    padding-top: 80px;
+  }
+
+  /* Hide info panel on mobile to maximize chat space */
+  .info-panel {
+    display: none;
+  }
+
+  /* Chat section: full width */
+  .chat-section {
+    width: 100%;
+    min-width: 0;
+    height: calc(100dvh - 80px);
+  }
+
+  /* Video section: full width, smaller */
+  .video-section {
+    width: 100%;
+  }
+
+  .video-container {
+    max-height: 200px;
+  }
+
+  /* Chat input area */
+  .chat-input-area-main {
+    padding: 8px;
+  }
+
+  .chat-input-area-main input {
+    font-size: 16px; /* prevent iOS zoom on focus */
+  }
+}
