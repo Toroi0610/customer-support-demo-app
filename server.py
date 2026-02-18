@@ -9,13 +9,13 @@ handling Google Cloud authentication automatically using default credentials.
 
 import asyncio
 import websockets
+import aiohttp
 import json
 import ssl
 import certifi
 import os
 import base64
 from aiohttp import web
-from websockets.legacy.server import WebSocketServerProtocol
 from websockets.legacy.protocol import WebSocketCommonProtocol
 from websockets.exceptions import ConnectionClosed
 
@@ -24,8 +24,7 @@ import google.auth
 from google.auth.transport.requests import Request
 
 DEBUG = False  # Set to True for verbose logging
-WS_PORT = 8080    # Port for WebSocket server
-HTTP_PORT = 8081   # Port for HTTP analysis endpoint
+PORT = int(os.environ.get("PORT", 8080))
 
 
 def generate_access_token():
@@ -41,19 +40,50 @@ def generate_access_token():
         return None
 
 
+class AiohttpWSAdapter:
+    """Adapts aiohttp WebSocketResponse to mimic the websockets library interface."""
+
+    def __init__(self, ws: web.WebSocketResponse):
+        self._ws = ws
+
+    @property
+    def closed(self):
+        return self._ws.closed
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        msg = await self._ws.receive()
+        if msg.type in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY):
+            return msg.data
+        raise StopAsyncIteration
+
+    async def recv(self):
+        msg = await self._ws.receive()
+        if msg.type in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY):
+            return msg.data
+        raise ConnectionClosed(None, None)
+
+    async def send(self, data):
+        if isinstance(data, (bytes, bytearray)):
+            await self._ws.send_bytes(data)
+        else:
+            await self._ws.send_str(data)
+
+    async def close(self, code=1000, reason=""):
+        if not self._ws.closed:
+            await self._ws.close(
+                code=code, message=reason.encode() if reason else b""
+            )
+
+
 async def proxy_task(
-    source_websocket: WebSocketCommonProtocol,
-    destination_websocket: WebSocketCommonProtocol,
+    source_websocket,
+    destination_websocket,
     is_server: bool,
 ) -> None:
-    """
-    Forwards messages from source_websocket to destination_websocket.
-
-    Args:
-        source_websocket: The WebSocket connection to receive messages from.
-        destination_websocket: The WebSocket connection to send messages to.
-        is_server: True if source is server side, False otherwise.
-    """
+    """Forwards messages from source_websocket to destination_websocket."""
     try:
         async for message in source_websocket:
             try:
@@ -73,23 +103,13 @@ async def proxy_task(
         await destination_websocket.close()
 
 
-async def create_proxy(
-    client_websocket: WebSocketCommonProtocol, bearer_token: str, service_url: str
-) -> None:
-    """
-    Establishes a WebSocket connection to the Gemini server and creates bidirectional proxy.
-
-    Args:
-        client_websocket: The WebSocket connection of the client.
-        bearer_token: The bearer token for authentication with the server.
-        service_url: The url of the service to connect to.
-    """
+async def create_proxy(client_websocket, bearer_token: str, service_url: str) -> None:
+    """Establishes a WebSocket connection to Gemini and creates bidirectional proxy."""
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {bearer_token}",
     }
 
-    # Create SSL context with certifi certificates
     ssl_context = ssl.create_default_context(cafile=certifi.where())
 
     print(f"Connecting to Gemini API...")
@@ -104,7 +124,6 @@ async def create_proxy(
         ) as server_websocket:
             print(f"✅ Connected to Gemini API")
 
-            # Create bidirectional proxy tasks
             client_to_server_task = asyncio.create_task(
                 proxy_task(client_websocket, server_websocket, is_server=False)
             )
@@ -112,13 +131,11 @@ async def create_proxy(
                 proxy_task(server_websocket, client_websocket, is_server=True)
             )
 
-            # Wait for either task to complete
             done, pending = await asyncio.wait(
                 [client_to_server_task, server_to_client_task],
                 return_when=asyncio.FIRST_COMPLETED,
             )
 
-            # Cancel the remaining task
             for task in pending:
                 task.cancel()
                 try:
@@ -126,15 +143,14 @@ async def create_proxy(
                 except asyncio.CancelledError:
                     pass
 
-            # Close connections
             try:
                 await server_websocket.close()
-            except:
+            except Exception:
                 pass
 
             try:
                 await client_websocket.close()
-            except:
+            except Exception:
                 pass
 
     except ConnectionClosed as e:
@@ -147,19 +163,10 @@ async def create_proxy(
             await client_websocket.close(code=1008, reason="Upstream connection failed")
 
 
-async def handle_websocket_client(client_websocket: WebSocketServerProtocol) -> None:
-    """
-    Handles a new WebSocket client connection.
-
-    Expects first message with optional bearer_token and service_url.
-    If no bearer_token provided, generates one using Google default credentials.
-
-    Args:
-        client_websocket: The WebSocket connection of the client.
-    """
+async def handle_websocket_client(client_websocket) -> None:
+    """Handles a new WebSocket client connection."""
     print("🔌 New WebSocket client connection...")
     try:
-        # Wait for the first message from the client
         service_setup_message = await asyncio.wait_for(
             client_websocket.recv(), timeout=10.0
         )
@@ -168,23 +175,18 @@ async def handle_websocket_client(client_websocket: WebSocketServerProtocol) -> 
         bearer_token = service_setup_message_data.get("bearer_token")
         service_url = service_setup_message_data.get("service_url")
 
-        # If no bearer token provided, generate one using default credentials
         if not bearer_token:
             print("🔑 Generating access token using default credentials...")
             bearer_token = generate_access_token()
             if not bearer_token:
                 print("❌ Failed to generate access token")
-                await client_websocket.close(
-                    code=1008, reason="Authentication failed"
-                )
+                await client_websocket.close(code=1008, reason="Authentication failed")
                 return
             print("✅ Access token generated")
 
         if not service_url:
             print("❌ Error: Service URL is missing")
-            await client_websocket.close(
-                code=1008, reason="Service URL is required"
-            )
+            await client_websocket.close(code=1008, reason="Service URL is required")
             return
 
         await create_proxy(client_websocket, bearer_token, service_url)
@@ -201,15 +203,16 @@ async def handle_websocket_client(client_websocket: WebSocketServerProtocol) -> 
             await client_websocket.close(code=1011, reason="Internal error")
 
 
-async def start_websocket_server():
-    """Start the WebSocket proxy server."""
-    async with websockets.serve(handle_websocket_client, "0.0.0.0", WS_PORT):
-        print(f"🔌 WebSocket proxy running on ws://localhost:{WS_PORT}")
-        # Run forever
-        await asyncio.Future()
+# ─── aiohttp Route Handlers ───────────────────────────────────────────────────
 
+async def ws_handler(request):
+    """aiohttp WebSocket upgrade handler — replaces websockets.serve()."""
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+    adapter = AiohttpWSAdapter(ws)
+    await handle_websocket_client(adapter)
+    return ws
 
-# ─── HTTP Frame Analysis Endpoint ───────────────────────────────────
 
 ANALYSIS_SYSTEM_INSTRUCTION = """You are a video analysis assistant monitoring a user through their camera.
 Analyze the image and respond with ONLY a valid JSON object (no markdown, no code blocks).
@@ -229,9 +232,9 @@ Focus on changes that a caring friend would notice and comment on."""
 
 async def handle_analyze_frame(request):
     """HTTP endpoint for analyzing a single video frame."""
-    # CORS headers
+    cors_origin = os.environ.get("CORS_ORIGIN", "*")
     headers = {
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": cors_origin,
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
     }
@@ -256,20 +259,17 @@ async def handle_analyze_frame(request):
                 {"error": "No project_id provided"}, status=400, headers=headers
             )
 
-        # Get access token
         token = generate_access_token()
         if not token:
             return web.json_response(
                 {"error": "Authentication failed"}, status=500, headers=headers
             )
 
-        # Build prompt with previous state context
         if previous_status:
             user_prompt = f"Analyze this image. Previous status_key was: '{previous_status}'. Compare with current state."
         else:
             user_prompt = "Analyze this image. This is the first frame being analyzed."
 
-        # Call Gemini REST API via Vertex AI
         api_url = (
             f"https://us-central1-aiplatform.googleapis.com/v1/projects/{project_id}"
             f"/locations/us-central1/publishers/google/models/{model}:generateContent"
@@ -299,8 +299,6 @@ async def handle_analyze_frame(request):
             },
         }
 
-        import aiohttp
-
         ssl_context = ssl.create_default_context(cafile=certifi.where())
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -323,7 +321,6 @@ async def handle_analyze_frame(request):
 
                 result = await resp.json()
 
-        # Extract the text response
         try:
             text_response = result["candidates"][0]["content"]["parts"][0]["text"]
             analysis = json.loads(text_response)
@@ -339,35 +336,17 @@ async def handle_analyze_frame(request):
 
     except Exception as e:
         print(f"Error in analyze_frame: {e}")
-        return web.json_response(
-            {"error": str(e)}, status=500, headers=headers
-        )
-
-
-async def start_http_server():
-    """Start the HTTP server for frame analysis."""
-    app = web.Application()
-    app.router.add_post("/analyze-frame", handle_analyze_frame)
-    app.router.add_options("/analyze-frame", handle_analyze_frame)
-
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", HTTP_PORT)
-    await site.start()
-    print(f"🔍 HTTP analysis endpoint running on http://localhost:{HTTP_PORT}/analyze-frame")
+        return web.json_response({"error": str(e)}, status=500, headers=headers)
 
 
 async def main():
-    """
-    Starts the WebSocket server and HTTP analysis server.
-    """
     print(f"""
 ╔════════════════════════════════════════════════════════════╗
 ║     Gemini Live API Proxy Server                          ║
 ╠════════════════════════════════════════════════════════════╣
 ║                                                            ║
-║  🔌 WebSocket Proxy: ws://localhost:{WS_PORT:<5}                   ║
-║  🔍 Frame Analysis:  http://localhost:{HTTP_PORT}/analyze-frame  ║
+║  🔌 WebSocket Proxy: ws://localhost:{PORT:<5}                   ║
+║  🔍 Frame Analysis:  http://localhost:{PORT}/analyze-frame  ║
 ║                                                            ║
 ║  Authentication:                                           ║
 ║  • Uses Google Cloud default credentials                  ║
@@ -376,15 +355,22 @@ async def main():
 ╚════════════════════════════════════════════════════════════╝
 """)
 
-    # Start both servers concurrently
-    await asyncio.gather(
-        start_websocket_server(),
-        start_http_server(),
-    )
+    app = web.Application()
+    app.router.add_get("/ws", ws_handler)
+    app.router.add_post("/analyze-frame", handle_analyze_frame)
+    app.router.add_options("/analyze-frame", handle_analyze_frame)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", PORT)
+    await site.start()
+    print(f"✅ Server running on port {PORT}")
+
+    await asyncio.Future()  # run forever
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n👋 Servers stopped")
+        print("\n👋 Server stopped")
