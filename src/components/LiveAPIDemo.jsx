@@ -400,27 +400,7 @@ const LiveAPIDemo = forwardRef(
         clientRef.current.activityHandling = activityHandling;
 
         if (!enableGrounding) {
-          // Register Customer Service Tools
-          clientRef.current.addFunction(
-            new ConnectToHumanTool((reason) => {
-              setModalContent({
-                title: "オペレーターに接続中",
-                message: `理由: ${reason}\n\n転送中です。しばらくお待ちください...`,
-              });
-              setModalVisible(true);
-            })
-          );
-
-          clientRef.current.addFunction(
-            new ProcessRefundTool((params) => {
-              setModalContent({
-                title: "返金処理完了",
-                message: `取引ID: ${params.transactionId}\n理由: ${params.reason}`,
-              });
-              setModalVisible(true);
-            })
-          );
-
+          // Always register camera observation tool
           clientRef.current.addFunction(
             new ReportVisualStateTool((state) => {
               setVisualState({
@@ -431,6 +411,23 @@ const LiveAPIDemo = forwardRef(
               });
             })
           );
+
+          // Register persona-specific tools
+          if (persona === "bright_friend" || persona === "mean_neighbor") {
+            clientRef.current.addFunction(
+              new CelebrateMomentTool((message) => {
+                addMessage(message, "celebrate");
+              })
+            );
+          }
+
+          if (persona === "bright_friend" || persona === "gentle_teacher") {
+            clientRef.current.addFunction(
+              new OfferSupportTool((message) => {
+                addMessage(message, "support");
+              })
+            );
+          }
         }
 
         clientRef.current.onReceiveResponse = handleMessage;
