@@ -854,6 +854,7 @@ button.connected:hover {
     width: auto;
     max-width: 100vw;
     box-sizing: border-box;
+    transform: none; /* reset desktop translateX(-50%) centering */
   }
 
   /* Main content: stack vertically */
