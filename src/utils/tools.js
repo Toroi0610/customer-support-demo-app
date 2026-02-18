@@ -114,73 +114,6 @@ export class AddCSSStyleTool extends FunctionCallDefinition {
 }
 
 /**
- * Connect To Human Tool
- * Simulates connecting the user to a human agent
- */
-export class ConnectToHumanTool extends FunctionCallDefinition {
-  constructor(onConnect) {
-    super(
-      "connect_to_human",
-      "Connects the user to a human customer service agent",
-      {
-        type: "object",
-        properties: {
-          reason: {
-            type: "string",
-            description: "The reason for connecting to a human",
-          },
-        },
-      },
-      ["reason"]
-    );
-    this.onConnect = onConnect;
-  }
-
-  functionToCall(parameters) {
-    const reason = parameters.reason || "No reason provided";
-    if (this.onConnect) {
-      this.onConnect(reason);
-    }
-    console.log(`📞 Connecting to human: ${reason}`);
-  }
-}
-
-/**
- * Process Refund Tool
- * Simulates processing a refund for a customer
- */
-export class ProcessRefundTool extends FunctionCallDefinition {
-  constructor(onRefund) {
-    super(
-      "process_refund",
-      "Processes a refund for a transaction",
-      {
-        type: "object",
-        properties: {
-          transactionId: {
-            type: "string",
-            description: "The ID of the transaction to refund",
-          },
-          reason: {
-            type: "string",
-            description: "The reason for the refund",
-          },
-        },
-      },
-      ["transactionId"]
-    );
-    this.onRefund = onRefund;
-  }
-
-  functionToCall(parameters) {
-    if (this.onRefund) {
-      this.onRefund(parameters);
-    }
-    console.log(`💸 Processing refund: ${JSON.stringify(parameters)}`);
-  }
-}
-
-/**
  * Report Visual State Tool
  * Reports what the AI observes from the camera feed
  */
@@ -188,7 +121,7 @@ export class ReportVisualStateTool extends FunctionCallDefinition {
   constructor(onReport) {
     super(
       "report_visual_state",
-      "Reports the current visual observation from the camera feed. Call this tool every time you notice something new or the scene changes in the camera. Describe what you see including the user's expression, objects, actions, and any items relevant to customer support.",
+      "Reports the current visual observation from the camera feed. Call this when instructed by the system to check the camera. Describe what you see: the user's expression, posture, actions, and notable items.",
       {
         type: "object",
         properties: {
@@ -205,7 +138,7 @@ export class ReportVisualStateTool extends FunctionCallDefinition {
           detected_items: {
             type: "string",
             description:
-              "Comma-separated list of notable items or objects visible in the frame (in Japanese)",
+              "Comma-separated list of notable items or objects visible in the frame, in Japanese",
           },
         },
       },
@@ -223,72 +156,63 @@ export class ReportVisualStateTool extends FunctionCallDefinition {
 }
 
 /**
- * End Conversation Tool
- * Ends the current customer support session
+ * Celebrate Moment Tool
+ * Triggered when the AI detects the user is happy or achieved something
  */
-export class EndConversationTool extends FunctionCallDefinition {
-  constructor(onEnd) {
+export class CelebrateMomentTool extends FunctionCallDefinition {
+  constructor(onCelebrate) {
     super(
-      "end_conversation",
-      "Ends the current customer support conversation",
+      "celebrate_moment",
+      "Call this when the user seems happy, excited, or has achieved something. Shows a celebration card in the UI.",
       {
         type: "object",
         properties: {
-          summary: {
+          message: {
             type: "string",
-            description: "A brief summary of the conversation",
+            description: "A celebratory message to display to the user, in Japanese",
           },
         },
       },
-      []
+      ["message"]
     );
-    this.onEnd = onEnd;
+    this.onCelebrate = onCelebrate;
   }
 
   functionToCall(parameters) {
-    if (this.onEnd) {
-      this.onEnd(parameters.summary);
+    if (this.onCelebrate) {
+      this.onCelebrate(parameters.message);
     }
-    console.log(`👋 Ending conversation. Summary: ${parameters.summary}`);
+    console.log(`🎉 Celebrate: ${parameters.message}`);
   }
 }
 
 /**
- * Point To Location Tool
- * Points to a specific location on the user's screen/video feed
+ * Offer Support Tool
+ * Triggered when the AI detects the user is sad, tired, or stressed
  */
-export class PointToLocationTool extends FunctionCallDefinition {
-  constructor(onPoint) {
+export class OfferSupportTool extends FunctionCallDefinition {
+  constructor(onSupport) {
     super(
-      "point_to_location",
-      "Points to a specific location on the user's screen or video feed to highlight something.",
+      "offer_support",
+      "Call this when the user seems sad, tired, or stressed. Shows a support card in the UI.",
       {
         type: "object",
         properties: {
-          x: {
-            type: "number",
-            description: "The x coordinate (0-1000) from the left edge",
-          },
-          y: {
-            type: "number",
-            description: "The y coordinate (0-1000) from the top edge",
-          },
-          label: {
+          message: {
             type: "string",
-            description: "Optional label to display at the location",
+            description: "A supportive message to display to the user, in Japanese",
           },
         },
       },
-      ["x", "y"]
+      ["message"]
     );
-    this.onPoint = onPoint;
+    this.onSupport = onSupport;
   }
 
-  // ...existing code...
   functionToCall(parameters) {
-    if (this.onEnd) {
-      this.onEnd(parameters.summary);
+    if (this.onSupport) {
+      this.onSupport(parameters.message);
     }
-    console.log(`👋 Ending conversation. Summary: ${parameters.summary}`);
+    console.log(`💙 Support: ${parameters.message}`);
   }
 }
