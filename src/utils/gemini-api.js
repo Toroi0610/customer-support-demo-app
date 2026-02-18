@@ -173,6 +173,10 @@ export class GeminiLiveAPI {
       console.log("Default onClose");
     };
 
+    this.onAuthError = () => {
+      console.log("Default onAuthError: unauthorized");
+    };
+
     console.log("Created Gemini Live API object: ", this);
   }
 
@@ -256,6 +260,11 @@ export class GeminiLiveAPI {
   onReceiveMessage(messageEvent) {
     // console.log("Message received: ", messageEvent);
     const messageData = JSON.parse(messageEvent.data);
+    // Explicit auth error sent by the server before closing the connection
+    if (messageData.error === "unauthorized") {
+      this.onAuthError();
+      return;
+    }
     const message = new MultimodalLiveResponseMessage(messageData);
     this.onReceiveResponse(message);
   }

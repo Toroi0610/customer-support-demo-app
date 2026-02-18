@@ -8,6 +8,13 @@ SERVICE_NAME="gemini-proxy"
 IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 CORS_ORIGIN="${CORS_ORIGIN:-*}"  # Override with your Firebase Hosting URL after first deploy
 
+# ── Require APP_PASSWORD ────────────────────────────────────────────────────────
+if [ -z "${APP_PASSWORD}" ]; then
+  echo "❌ Error: APP_PASSWORD is not set."
+  echo "   Run:  APP_PASSWORD=<your-password> ./deploy-backend.sh"
+  exit 1
+fi
+
 echo "🚀 Deploying backend to Cloud Run..."
 echo "   Project:  ${PROJECT_ID}"
 echo "   Region:   ${REGION}"
@@ -30,7 +37,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --platform managed \
   --region "${REGION}" \
   --allow-unauthenticated \
-  --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID},CORS_ORIGIN=${CORS_ORIGIN},APP_PASSWORD=${APP_PASSWORD:-}" \
+  --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID},CORS_ORIGIN=${CORS_ORIGIN},APP_PASSWORD=${APP_PASSWORD}" \
   --min-instances 0 \
   --max-instances 3 \
   --timeout 3600

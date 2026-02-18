@@ -44,10 +44,13 @@ def generate_access_token():
 
 
 def verify_app_password(password: str) -> bool:
-    """Verifies the app password. Skips check in dev mode (APP_PASSWORD not set)."""
+    """Verifies the app password.
+    When APP_PASSWORD is not set, all connections are rejected to prevent
+    accidental open access in production.
+    """
     if not APP_PASSWORD:
-        print("⚠️  APP_PASSWORD not set — skipping auth (dev mode)")
-        return True
+        print("🚫 APP_PASSWORD not set — all connections rejected. Set APP_PASSWORD env var.")
+        return False
     if password == APP_PASSWORD:
         print("✅ Access granted")
         return True
@@ -247,6 +250,10 @@ async def ws_handler(request):
 
     app_password = setup_data.get("app_password", "")
     if not verify_app_password(app_password):
+        # Send explicit error message before closing so the client can detect
+        # auth failure independently of the WebSocket close code (which some
+        # proxies may normalize).
+        await ws.send_json({"error": "unauthorized"})
         await ws.close(code=4001, message=b"Unauthorized")
         return ws
 

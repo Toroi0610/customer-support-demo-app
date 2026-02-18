@@ -189,6 +189,12 @@ const LiveAPIDemo = forwardRef(
       }
     };
 
+    const resetAuth = () => {
+      setAuthError("パスワードが正しくありません");
+      setAppPassword(null);
+      setPasswordInput("");
+    };
+
     const [persona, setPersona] = useState(
       localStorage.getItem("persona") || "bright_friend"
     );
@@ -246,6 +252,9 @@ const LiveAPIDemo = forwardRef(
     // Chat State
     const [chatMessages, setChatMessages] = useState([]);
     const [chatInput, setChatInput] = useState("");
+
+    // Auth pending ref: true between connect() and SETUP_COMPLETE (or close)
+    const pendingAuthRef = useRef(false);
 
     // Refs
     const clientRef = useRef(null);
@@ -355,6 +364,7 @@ const LiveAPIDemo = forwardRef(
           );
           break;
         case MultimodalLiveResponseType.SETUP_COMPLETE:
+          pendingAuthRef.current = false;
           addMessage("準備完了！", "system");
           if (clientRef.current && clientRef.current.lastSetupMessage) {
             setSetupJson(clientRef.current.lastSetupMessage);
@@ -446,6 +456,8 @@ const LiveAPIDemo = forwardRef(
         return;
       }
 
+      pendingAuthRef.current = true;
+
       try {
         clientRef.current = new GeminiLiveAPI(proxyUrl, projectId, model);
 
@@ -515,12 +527,19 @@ const LiveAPIDemo = forwardRef(
         clientRef.current.onConnectionStarted = () => {
           setConnected(true);
         };
+        // Explicit auth error message from server (most reliable signal)
+        clientRef.current.onAuthError = () => {
+          pendingAuthRef.current = false;
+          resetAuth();
+          setConnected(false);
+          disconnect();
+        };
         clientRef.current.onClose = (event) => {
-          if (event?.code === 4001) {
-            // Wrong password — return to password overlay with error
-            setAuthError("パスワードが正しくありません");
-            setAppPassword(null);
-            setPasswordInput("");
+          if (pendingAuthRef.current) {
+            // Connection closed before setup complete — treat as auth failure
+            // regardless of close code (covers code 4001 and any normalized codes)
+            pendingAuthRef.current = false;
+            resetAuth();
           } else {
             addMessage("[接続が切断されました]", "system");
           }
@@ -539,6 +558,7 @@ const LiveAPIDemo = forwardRef(
       } catch (error) {
         console.error("Connection failed:", error);
         addMessage(`[接続失敗: ${error.message}]`, "system");
+        pendingAuthRef.current = false;
         disconnect();
       }
     };
