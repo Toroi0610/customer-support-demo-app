@@ -448,6 +448,12 @@ const LiveAPIDemo = forwardRef(
               deviceId: selectedCamera,
               nudgeEveryNFrames: 10,
               nudgeText: "[report_visual_state] 映像の状況を報告してください",
+              shouldNudgeFn: () => {
+                if (userMonitorRef.current) {
+                  return userMonitorRef.current.getStateManager().shouldNudge();
+                }
+                return true; // Default: nudge if no monitor
+              },
             });
             setVideoStreaming(true);
             if (videoPreviewRef.current) {
@@ -540,6 +546,8 @@ const LiveAPIDemo = forwardRef(
           projectId: projectId,
           model: "gemini-2.0-flash",
           intervalMs: 5000,
+          lowIntervalMs: 60000,
+          mediumConsecutiveThreshold: 2,
           onSignificantChange: (analysis, previousKey) => {
             // Send a text message to the Live API to trigger the AI to speak about the change
             if (clientRef.current && clientRef.current.connected) {

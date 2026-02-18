@@ -154,6 +154,7 @@ class BaseVideoCapture {
     this.frameCount = 0;
     this.nudgeEveryNFrames = 0; // 0 = disabled
     this.nudgeText = "";
+    this.shouldNudgeFn = null;
   }
 
   /**
@@ -202,8 +203,10 @@ class BaseVideoCapture {
         this.canvas.height
       );
 
-      // Overlay nudge text every N frames (only on the capture canvas, not the preview)
+      // Overlay nudge text every N frames, but only if shouldNudgeFn allows it
+      const shouldNudge = this.shouldNudgeFn ? this.shouldNudgeFn() : true;
       if (
+        shouldNudge &&
         this.nudgeEveryNFrames > 0 &&
         this.nudgeText &&
         this.frameCount % this.nudgeEveryNFrames === 0
@@ -310,6 +313,7 @@ export class VideoStreamer extends BaseVideoCapture {
       this.quality = quality;
       this.nudgeEveryNFrames = nudgeEveryNFrames;
       this.nudgeText = nudgeText;
+      this.shouldNudgeFn = options.shouldNudgeFn || null;
 
       // Build video constraints
       const videoConstraints = {
