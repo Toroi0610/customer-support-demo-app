@@ -106,6 +106,10 @@ function renderChatMessage(msg, index) {
 
 const LiveAPIDemo = forwardRef(
   ({ onConnectionChange, onAudioStreamChange }, ref) => {
+    // Auth State
+    const [idToken, setIdToken] = useState(null);
+    const [authError, setAuthError] = useState(null);
+
     // Connection State
     const [connected, setConnected] = useState(false);
     const [setupJson, setSetupJson] = useState(null);
@@ -140,6 +144,39 @@ const LiveAPIDemo = forwardRef(
     useEffect(() => {
       localStorage.setItem("model", model);
     }, [model]);
+
+    // Initialize Google Sign-In
+    useEffect(() => {
+      const initGoogleSignIn = () => {
+        if (!window.google) return;
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          callback: (response) => {
+            setIdToken(response.credential);
+            setAuthError(null);
+          },
+        });
+        if (!idToken) {
+          window.google.accounts.id.renderButton(
+            document.getElementById("google-signin-button"),
+            { theme: "outline", size: "large", locale: "ja" }
+          );
+        }
+      };
+
+      // Google script may not be loaded yet — poll until ready
+      if (window.google) {
+        initGoogleSignIn();
+      } else {
+        const interval = setInterval(() => {
+          if (window.google) {
+            clearInterval(interval);
+            initGoogleSignIn();
+          }
+        }, 100);
+        return () => clearInterval(interval);
+      }
+    }, [idToken]);
 
     const [persona, setPersona] = useState(
       localStorage.getItem("persona") || "bright_friend"
@@ -401,6 +438,7 @@ const LiveAPIDemo = forwardRef(
       try {
         clientRef.current = new GeminiLiveAPI(proxyUrl, projectId, model);
 
+        clientRef.current.idToken = idToken;
         clientRef.current.systemInstructions = systemInstructions;
         clientRef.current.inputAudioTranscription = enableInputTranscription;
         clientRef.current.outputAudioTranscription = enableOutputTranscription;
@@ -615,6 +653,7 @@ const LiveAPIDemo = forwardRef(
             const httpBase = wsUrl.replace(/^ws(s?):\/\//, "http$1://").replace(/\/ws$/, "");
             return `${httpBase}/analyze-frame`;
           })(),
+          idToken: idToken,
           projectId: projectId,
           model: "gemini-2.0-flash",
           intervalMs: 5000,
@@ -710,6 +749,21 @@ const LiveAPIDemo = forwardRef(
     useEffect(() => {
       onAudioStreamChange?.(audioStreaming);
     }, [audioStreaming, onAudioStreamChange]);
+
+    // Show sign-in overlay if not authenticated
+    if (!idToken) {
+      return (
+        <div className="signin-overlay">
+          <div className="signin-card">
+            <h1>AI パートナー</h1>
+            <p className="signin-subtitle">Gemini Live API 搭載</p>
+            <p className="signin-description">Googleアカウントでログインしてご利用ください</p>
+            <div id="google-signin-button"></div>
+            {authError && <p className="signin-error">{authError}</p>}
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="live-api-demo">

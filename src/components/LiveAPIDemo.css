@@ -893,3 +893,52 @@ button.connected:hover {
     font-size: 16px; /* prevent iOS zoom on focus */
   }
 }
+
+/* Sign-In Overlay */
+.signin-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e8f0fe 100%);
+}
+
+.signin-card {
+  background: white;
+  border-radius: 16px;
+  padding: 48px 40px;
+  text-align: center;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  width: 90%;
+}
+
+.signin-card h1 {
+  font-size: 1.8rem;
+  color: #202124;
+  margin: 0 0 4px;
+  font-weight: 500;
+}
+
+.signin-subtitle {
+  font-size: 0.85rem;
+  color: #5f6368;
+  margin: 0 0 24px;
+}
+
+.signin-description {
+  color: #3c4043;
+  margin-bottom: 28px;
+  font-size: 0.95rem;
+}
+
+#google-signin-button {
+  display: flex;
+  justify-content: center;
+}
+
+.signin-error {
+  color: #d93025;
+  font-size: 0.85rem;
+  margin-top: 16px;
+}
