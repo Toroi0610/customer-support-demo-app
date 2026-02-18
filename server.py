@@ -26,6 +26,11 @@ from google.auth.transport.requests import Request
 DEBUG = False  # Set to True for verbose logging
 PORT = int(os.environ.get("PORT", 8080))
 
+# Authentication
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+ALLOWED_EMAILS_RAW = os.environ.get("ALLOWED_EMAILS", "")
+ALLOWED_EMAILS = set(e.strip() for e in ALLOWED_EMAILS_RAW.split(",") if e.strip())
+
 
 def generate_access_token():
     """Retrieves an access token using Google Cloud default credentials."""
@@ -38,6 +43,33 @@ def generate_access_token():
         print(f"Error generating access token: {e}")
         print("Make sure you're logged in with: gcloud auth application-default login")
         return None
+
+
+def verify_google_token(token_string: str) -> bool:
+    """Verifies a Google ID token and checks the email against the allowlist."""
+    if not GOOGLE_CLIENT_ID:
+        print("⚠️  GOOGLE_CLIENT_ID not set — skipping auth (dev mode)")
+        return True
+    if not ALLOWED_EMAILS:
+        print("⚠️  ALLOWED_EMAILS not set — skipping auth (dev mode)")
+        return True
+    try:
+        from google.oauth2 import id_token as google_id_token
+        from google.auth.transport import requests as grequests
+        idinfo = google_id_token.verify_oauth2_token(
+            token_string,
+            grequests.Request(),
+            GOOGLE_CLIENT_ID,
+        )
+        email = idinfo.get("email", "")
+        if email not in ALLOWED_EMAILS:
+            print(f"🚫 Access denied for email: {email}")
+            return False
+        print(f"✅ Access granted for email: {email}")
+        return True
+    except Exception as e:
+        print(f"❌ Token verification failed: {e}")
+        return False
 
 
 class AiohttpWSAdapter:
@@ -163,14 +195,17 @@ async def create_proxy(client_websocket, bearer_token: str, service_url: str) ->
             await client_websocket.close(code=1008, reason="Upstream connection failed")
 
 
-async def handle_websocket_client(client_websocket) -> None:
+async def handle_websocket_client(client_websocket, prefetched_setup: dict = None) -> None:
     """Handles a new WebSocket client connection."""
     print("🔌 New WebSocket client connection...")
     try:
-        service_setup_message = await asyncio.wait_for(
-            client_websocket.recv(), timeout=10.0
-        )
-        service_setup_message_data = json.loads(service_setup_message)
+        if prefetched_setup is not None:
+            service_setup_message_data = prefetched_setup
+        else:
+            service_setup_message = await asyncio.wait_for(
+                client_websocket.recv(), timeout=10.0
+            )
+            service_setup_message_data = json.loads(service_setup_message)
 
         bearer_token = service_setup_message_data.get("bearer_token")
         service_url = service_setup_message_data.get("service_url")
@@ -209,8 +244,31 @@ async def ws_handler(request):
     """aiohttp WebSocket upgrade handler — replaces websockets.serve()."""
     ws = web.WebSocketResponse()
     await ws.prepare(request)
+
+    # Read first message to verify auth before proxying
+    try:
+        msg = await asyncio.wait_for(ws.receive(), timeout=10.0)
+    except asyncio.TimeoutError:
+        await ws.close(code=1008, message=b"Timeout waiting for setup message")
+        return ws
+
+    if msg.type not in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY):
+        await ws.close(code=1008, message=b"Expected text message")
+        return ws
+
+    try:
+        setup_data = json.loads(msg.data)
+    except json.JSONDecodeError:
+        await ws.close(code=1008, message=b"Invalid JSON")
+        return ws
+
+    id_token = setup_data.get("id_token", "")
+    if not verify_google_token(id_token):
+        await ws.close(code=4001, message=b"Unauthorized")
+        return ws
+
     adapter = AiohttpWSAdapter(ws)
-    await handle_websocket_client(adapter)
+    await handle_websocket_client(adapter, prefetched_setup=setup_data)
     return ws
 
 
@@ -236,11 +294,21 @@ async def handle_analyze_frame(request):
     headers = {
         "Access-Control-Allow-Origin": cors_origin,
         "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
     }
 
     if request.method == "OPTIONS":
         return web.Response(headers=headers)
+
+    # Verify Google ID token
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        id_token = auth_header[7:]
+        if not verify_google_token(id_token):
+            return web.json_response({"error": "Unauthorized"}, status=401, headers=headers)
+    elif GOOGLE_CLIENT_ID and ALLOWED_EMAILS:
+        # Auth is configured but no token provided
+        return web.json_response({"error": "Unauthorized"}, status=401, headers=headers)
 
     try:
         data = await request.json()
