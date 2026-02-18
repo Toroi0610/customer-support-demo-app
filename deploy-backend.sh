@@ -16,7 +16,7 @@ echo "   Service:  ${SERVICE_NAME}"
 # ── Build & Push ───────────────────────────────────────────────────────────────
 echo ""
 echo "📦 Building Docker image..."
-docker build -t "${IMAGE}" .
+docker build --platform linux/amd64 -t "${IMAGE}" .
 
 echo ""
 echo "⬆️  Pushing to Container Registry..."
