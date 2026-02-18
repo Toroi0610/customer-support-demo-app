@@ -78,6 +78,29 @@ const PERSONA_PROMPTS = {
 - "report_visual_state": システムから映像確認の指示が来た時に呼び出すこと。見えているもの、ユーザーの感情、アイテムを日本語で報告してください。
 - "celebrate_moment": ユーザーが何かを達成した・嬉しそうにしている時に（渋々）認めるために呼び出すこと。message パラメータには渋い祝福の言葉を入れること。
 `,
+
+  stupid_dog: `あなたはユーザーの「アホな犬」です！いつも全力で尻尾を振りながら元気よくバウバウ！ちょっとおバカだけど、愛情だけは誰にも負けません。ご主人様（ユーザー）のことが大大大好き！
+
+重要：元気いっぱいのタメ口日本語で話してください！文章の最後にたまに「ワン！」「バウ！」を付けてね。難しい言葉は苦手です。
+
+カメラを通じたワクワク交流：
+- カメラを通じてご主人様を見ています！うれしくて仕方ありません！
+- システムから映像確認の指示が来た時に "report_visual_state" ツールを呼び出してください。
+- ユーザーが笑顔になったり嬉しそうにしていたら "celebrate_moment" ツールを使って一緒に大喜びしてください！
+- ユーザーが悲しそうだったり疲れていたら "offer_support" ツールを使ってそっと寄り添ってください。
+
+アクションガイドライン：
+1. 常に全力で元気よく！テンション高め！
+2. 少しおバカな表現を使う（「えっと、えっと、」「なんだっけ？」など）。
+3. ユーザーのことが大好きで何でも一緒にやりたがる。
+4. 難しい話は得意じゃないけど、愛情とやる気だけは誰にも負けない！
+5. たまに「ワン！」「バウバウ！」を自然に混ぜる。
+
+使用可能なツール：
+- "report_visual_state": システムから映像確認の指示が来た時に呼び出すこと。見えているもの、ユーザーの感情、アイテムを日本語で報告してください。
+- "celebrate_moment": ユーザーが喜んでいる・達成した時に呼び出すこと。message パラメータに全力の祝福の言葉（犬らしく）を入れること。
+- "offer_support": ユーザーが悲しい・疲れている時に呼び出すこと。message パラメータに犬らしい寄り添いの言葉を入れること。
+`,
 };
 
 function renderChatMessage(msg, index) {
@@ -474,7 +497,7 @@ const LiveAPIDemo = forwardRef(
         );
 
         // Register persona-specific tools
-        if (persona === "bright_friend" || persona === "mean_neighbor") {
+        if (persona === "bright_friend" || persona === "mean_neighbor" || persona === "stupid_dog") {
           clientRef.current.addFunction(
             new CelebrateMomentTool((message) => {
               addMessage(message, "celebrate");
@@ -482,7 +505,7 @@ const LiveAPIDemo = forwardRef(
           );
         }
 
-        if (persona === "bright_friend" || persona === "gentle_teacher") {
+        if (persona === "bright_friend" || persona === "gentle_teacher" || persona === "stupid_dog") {
           clientRef.current.addFunction(
             new OfferSupportTool((message) => {
               addMessage(message, "support");
@@ -498,8 +521,14 @@ const LiveAPIDemo = forwardRef(
         clientRef.current.onConnectionStarted = () => {
           setConnected(true);
         };
-        clientRef.current.onClose = () => {
-          addMessage("[接続が切断されました]", "system");
+        clientRef.current.onClose = (event) => {
+          if (event?.code === 4001) {
+            // Unauthorized — show error on sign-in overlay
+            setAuthError("アクセスが許可されていません");
+            setIdToken(null);
+          } else {
+            addMessage("[接続が切断されました]", "system");
+          }
           setConnected(false);
           disconnect();
         };
@@ -822,6 +851,7 @@ const LiveAPIDemo = forwardRef(
                       <option value="bright_friend">😊 明るい友達</option>
                       <option value="gentle_teacher">📖 優しい先生</option>
                       <option value="mean_neighbor">😠 意地悪な隣人</option>
+                      <option value="stupid_dog">🐕 アホな犬</option>
                     </select>
                   </div>
                   <div className="input-group">
