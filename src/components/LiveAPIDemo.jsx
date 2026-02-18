@@ -1028,11 +1028,29 @@ const LiveAPIDemo = forwardRef(
                   {chatMessages.length === 0 && (
                     <div>Gemini に接続してチャットを開始</div>
                   )}
-                  {chatMessages.map((msg, index) => (
-                    <div key={index} className={`message ${msg.type}`}>
-                      {msg.text}
-                    </div>
-                  ))}
+                  {chatMessages.map((msg, index) => {
+                    if (msg.type === "celebrate") {
+                      return (
+                        <div key={index} className="message celebrate-card">
+                          <span className="card-icon">🎉</span>
+                          <span className="card-text">{msg.text}</span>
+                        </div>
+                      );
+                    }
+                    if (msg.type === "support") {
+                      return (
+                        <div key={index} className="message support-card">
+                          <span className="card-icon">💙</span>
+                          <span className="card-text">{msg.text}</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={index} className={`message ${msg.type}`}>
+                        {msg.text}
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="chat-input-area">
                   <input
@@ -1103,11 +1121,29 @@ const LiveAPIDemo = forwardRef(
                   )}
                 </div>
               )}
-              {chatMessages.map((msg, index) => (
-                <div key={index} className={`message ${msg.type}`}>
-                  {msg.text}
-                </div>
-              ))}
+              {chatMessages.map((msg, index) => {
+                if (msg.type === "celebrate") {
+                  return (
+                    <div key={index} className="message celebrate-card">
+                      <span className="card-icon">🎉</span>
+                      <span className="card-text">{msg.text}</span>
+                    </div>
+                  );
+                }
+                if (msg.type === "support") {
+                  return (
+                    <div key={index} className="message support-card">
+                      <span className="card-icon">💙</span>
+                      <span className="card-text">{msg.text}</span>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={index} className={`message ${msg.type}`}>
+                    {msg.text}
+                  </div>
+                );
+              })}
             </div>
             <div className="chat-input-area-main">
               <input

@@ -782,3 +782,44 @@ button.connected:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Emotion Reaction Cards */
+.message.celebrate-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #fff9e6, #fff3cc);
+  border: 1px solid #f4b400;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin: 4px 0;
+  animation: celebrate-pop 0.4s ease-out;
+}
+
+.message.support-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #e8f4fd, #d6eaf8);
+  border: 1px solid #4285f4;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin: 4px 0;
+}
+
+.card-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.card-text {
+  font-size: 0.95rem;
+  color: #202124;
+  line-height: 1.4;
+}
+
+@keyframes celebrate-pop {
+  0% { transform: scale(0.9); opacity: 0; }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
