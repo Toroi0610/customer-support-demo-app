@@ -1,3 +1,5 @@
+import { UserStateManager } from "./user-state-manager.js";
+
 /**
  * User State Monitor
  * Independently monitors video frames and detects significant changes in the user's state.
@@ -32,6 +34,10 @@ export class UserStateMonitor {
     this.previousStatusKey = null;
     this.analysisInProgress = false;
     this.stateHistory = [];
+    this.stateManager = new UserStateManager({
+      lowIntervalMs: options.lowIntervalMs || 60000,
+      mediumConsecutiveThreshold: options.mediumConsecutiveThreshold || 2,
+    });
   }
 
   /**
@@ -150,27 +156,19 @@ export class UserStateMonitor {
       // Always notify UI of state update
       this.onStateUpdate(stateEntry);
 
-      // Check for significant change
-      const isFirst = this.previousStatusKey === null;
+      // Evaluate with state manager
+      const evaluation = this.stateManager.evaluate(analysis);
       const previousKey = this.previousStatusKey;
       this.previousStatusKey = analysis.status_key;
 
-      if (isFirst) {
-        // First detection - always notify so AI greets the user
+      if (evaluation.shouldSpeak) {
         console.log(
-          `UserStateMonitor: Initial state - ${analysis.status_key}: ${analysis.observation}`
+          `UserStateMonitor: Should speak (${evaluation.reason}, level: ${evaluation.level}) ${previousKey || "初回検知"} -> ${analysis.status_key}: ${analysis.observation}`
         );
-        this.onSignificantChange(analysis, "初回検知");
-      } else if (analysis.significant_change) {
-        // Significant change detected
-        console.log(
-          `UserStateMonitor: Change detected! ${previousKey} -> ${analysis.status_key}: ${analysis.observation}`
-        );
-        this.onSignificantChange(analysis, previousKey);
+        this.onSignificantChange(analysis, previousKey || "初回検知");
       } else {
-        // No significant change
         console.log(
-          `UserStateMonitor: No change (${analysis.status_key}): ${analysis.observation}`
+          `UserStateMonitor: Silent (${evaluation.reason}, level: ${evaluation.level}) ${analysis.status_key}: ${analysis.observation}`
         );
       }
     } catch (error) {
@@ -184,6 +182,13 @@ export class UserStateMonitor {
   /**
    * Get the current monitoring state
    */
+  /**
+   * Get the state manager instance (for external nudge control).
+   */
+  getStateManager() {
+    return this.stateManager;
+  }
+
   getState() {
     return {
       isMonitoring: this.isMonitoring,
