@@ -10,6 +10,7 @@ export class UserStateMonitor {
   /**
    * @param {Object} options
    * @param {string} options.analysisUrl - URL of the frame analysis endpoint
+   * @param {string|null} options.idToken - Google ID token for Authorization header (optional)
    * @param {string} options.projectId - Google Cloud project ID
    * @param {string} options.model - Gemini model ID for analysis
    * @param {number} options.intervalMs - Monitoring interval in milliseconds (default: 5000)

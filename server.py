@@ -65,7 +65,10 @@ def verify_google_token(token_string: str) -> bool:
         if email not in ALLOWED_EMAILS:
             print(f"🚫 Access denied for email: {email}")
             return False
-        print(f"✅ Access granted for email: {email}")
+        if DEBUG:
+            print(f"✅ Access granted for email: {email}")
+        else:
+            print("✅ Access granted")
         return True
     except Exception as e:
         print(f"❌ Token verification failed: {e}")
