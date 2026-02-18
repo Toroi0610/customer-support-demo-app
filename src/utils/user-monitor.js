@@ -19,6 +19,7 @@ export class UserStateMonitor {
    */
   constructor(options = {}) {
     this.analysisUrl = options.analysisUrl || "http://localhost:8080/analyze-frame";
+    this.idToken = options.idToken || null;
     this.projectId = options.projectId || "";
     this.model = options.model || "gemini-2.0-flash";
     this.intervalMs = options.intervalMs || 5000;
@@ -119,9 +120,13 @@ export class UserStateMonitor {
       const base64Image = dataUrl.split(",")[1];
 
       // Send to analysis endpoint
+      const authHeaders = { "Content-Type": "application/json" };
+      if (this.idToken) {
+        authHeaders["Authorization"] = `Bearer ${this.idToken}`;
+      }
       const response = await fetch(this.analysisUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
         body: JSON.stringify({
           image: base64Image,
           previous_status: this.previousStatusKey || "",
