@@ -179,10 +179,11 @@ export class CelebrateMomentTool extends FunctionCallDefinition {
   }
 
   functionToCall(parameters) {
+    const message = parameters.message || "";
     if (this.onCelebrate) {
-      this.onCelebrate(parameters.message);
+      this.onCelebrate(message);
     }
-    console.log(`🎉 Celebrate: ${parameters.message}`);
+    console.log(`🎉 Celebrate: ${message}`);
   }
 }
 
@@ -210,9 +211,10 @@ export class OfferSupportTool extends FunctionCallDefinition {
   }
 
   functionToCall(parameters) {
+    const message = parameters.message || "";
     if (this.onSupport) {
-      this.onSupport(parameters.message);
+      this.onSupport(message);
     }
-    console.log(`💙 Support: ${parameters.message}`);
+    console.log(`💙 Support: ${message}`);
   }
 }
