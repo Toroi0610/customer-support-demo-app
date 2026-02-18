@@ -691,7 +691,7 @@ const LiveAPIDemo = forwardRef(
       <div className="live-api-demo">
         <div className="toolbar">
           <div className="toolbar-left">
-            <h1>カスタマーサポート</h1>
+            <h1>AI パートナー</h1>
             <span className="powered-by">Gemini Live API 搭載</span>
           </div>
           <div className="toolbar-center">
@@ -1062,46 +1062,31 @@ const LiveAPIDemo = forwardRef(
 
         <div className="main-content">
           <div className="info-panel">
-            <h3>デモのポイント</h3>
+            <h3>AI パートナーとは</h3>
             <p className="demo-intro">
-              AIエージェントがお客様の画面を見て、声のトーンを理解し、
-              リアルタイムで問題を解決する次世代カスタマーサポートを体験できます。
+              あなたに寄り添う AI パートナー。カメラ越しにあなたを見守り、
+              声のトーンや表情を読み取りながら、自然な会話であなたの毎日をサポートします。
             </p>
             <div className="info-item">
-              <h4>マルチモーダル対応</h4>
+              <h4>3つのペルソナ</h4>
               <p>
-                音声と映像をシームレスに処理し、お客様が問題を視覚的に
-                示すことで、より迅速な解決を実現します。
+                設定からペルソナを選択できます。明るい友達・優しい先生・意地悪な隣人、
+                それぞれ異なる個性でコミュニケーションします。
               </p>
             </div>
             <div className="info-item">
-              <h4>感情対話</h4>
+              <h4>感情を読み取る</h4>
               <p>
-                ユーザーの感情を検出し、適切な共感とトーンで応答することで、
-                より人間らしいコミュニケーションを実現します。
+                カメラを通じてあなたの表情や状態を観察し、嬉しい時は一緒に喜び、
+                疲れている時は寄り添います。
               </p>
-            </div>
-            <div className="info-item">
-              <h4>カスタムツール</h4>
-              <p>実際のアクションを実行できます：</p>
-              <ul>
-                <li>返金処理</li>
-                <li>オペレーターへの接続</li>
-              </ul>
             </div>
             <div className="info-item">
               <h4>試してみてください：</h4>
               <ul>
-                <li>
-                  「この商品を返品したいのですが、見えますか？」（カメラに商品を見せる）
-                </li>
-                <li>
-                  「このサービスに本当に困っています！」（感情検出のテスト）
-                </li>
-                <li>
-                  「前回の注文の返金をお願いできますか？」（返金ツールのテスト）
-                </li>
-                <li>「担当者と話がしたいです。」（引き継ぎツールのテスト）</li>
+                <li>笑顔を見せてみる（お祝いしてくれるかも）</li>
+                <li>疲れた表情をしてみる（寄り添ってくれるかも）</li>
+                <li>ペルソナを切り替えて話しかける</li>
               </ul>
             </div>
           </div>
@@ -1110,7 +1095,7 @@ const LiveAPIDemo = forwardRef(
             <div className="chat-container-main" ref={chatContainerRef}>
               {chatMessages.length === 0 && (
                 <div className="empty-state">
-                  <p>接続してサポートとチャットを開始</p>
+                  <p>接続して AI パートナーと話しかけてみましょう</p>
                   {!connected && (
                     <button onClick={connect} className="connect-button">
                       今すぐ接続
