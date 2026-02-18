@@ -146,6 +146,9 @@ const LiveAPIDemo = forwardRef(
     }, [model]);
 
     // Initialize Google Sign-In
+    // Initialize Google Sign-In once on mount; renderButton targets the overlay div
+    // which only exists when idToken is null (overlay is shown). Re-running on
+    // token change is unnecessary because the overlay unmounts on sign-in.
     useEffect(() => {
       const initGoogleSignIn = () => {
         if (!window.google) return;
@@ -156,12 +159,10 @@ const LiveAPIDemo = forwardRef(
             setAuthError(null);
           },
         });
-        if (!idToken) {
-          window.google.accounts.id.renderButton(
-            document.getElementById("google-signin-button"),
-            { theme: "outline", size: "large", locale: "ja" }
-          );
-        }
+        window.google.accounts.id.renderButton(
+          document.getElementById("google-signin-button"),
+          { theme: "outline", size: "large", locale: "ja" }
+        );
       };
 
       // Google script may not be loaded yet — poll until ready
@@ -176,7 +177,7 @@ const LiveAPIDemo = forwardRef(
         }, 100);
         return () => clearInterval(interval);
       }
-    }, [idToken]);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [persona, setPersona] = useState(
       localStorage.getItem("persona") || "bright_friend"
