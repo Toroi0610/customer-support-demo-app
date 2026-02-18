@@ -98,4 +98,43 @@ describe("UserStateManager", () => {
       expect(result.reason).toBe("low_interval");
     });
   });
+
+  describe("shouldNudge", () => {
+    it("returns true when no emotion history (default to nudge)", () => {
+      const manager = new UserStateManager();
+      expect(manager.shouldNudge()).toBe(true);
+    });
+
+    it("returns true when current level is HIGH", () => {
+      const manager = new UserStateManager();
+      manager.evaluate({ emotion: "困っている", status_key: "troubled", observation: "test" });
+      expect(manager.shouldNudge()).toBe(true);
+    });
+
+    it("returns true when current level is MEDIUM", () => {
+      const manager = new UserStateManager();
+      manager.isFirstEvaluation = false;
+      manager.lastSpokeAt = Date.now();
+      manager.evaluate({ emotion: "疲れている", status_key: "tired", observation: "test" });
+      expect(manager.shouldNudge()).toBe(true);
+    });
+
+    it("returns false when current level is LOW and within interval", () => {
+      const manager = new UserStateManager({ lowIntervalMs: 60000 });
+      manager.isFirstEvaluation = false;
+      manager.lastSpokeAt = Date.now();
+      manager.evaluate({ emotion: "集中", status_key: "focused", observation: "test" });
+      expect(manager.shouldNudge()).toBe(false);
+    });
+
+    it("returns true when current level is LOW but interval elapsed", () => {
+      const manager = new UserStateManager({ lowIntervalMs: 60000 });
+      manager.isFirstEvaluation = false;
+      manager.lastSpokeAt = Date.now();
+      manager.evaluate({ emotion: "集中", status_key: "focused", observation: "test" });
+      // Override lastSpokeAt to simulate time passage after evaluate recorded the emotion
+      manager.lastSpokeAt = Date.now() - 70000;
+      expect(manager.shouldNudge()).toBe(true);
+    });
+  });
 });

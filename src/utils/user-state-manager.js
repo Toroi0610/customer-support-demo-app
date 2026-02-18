@@ -112,6 +112,24 @@ export class UserStateManager {
   }
 
   /**
+   * Decide whether a realtime video nudge should be sent.
+   * HIGH/MEDIUM: always nudge. LOW: only if interval has elapsed.
+   */
+  shouldNudge() {
+    if (this.emotionHistory.length === 0) return true;
+
+    const lastEntry = this.emotionHistory[this.emotionHistory.length - 1];
+    if (lastEntry.level === "HIGH" || lastEntry.level === "MEDIUM") {
+      return true;
+    }
+
+    // LOW — check interval
+    const now = Date.now();
+    const elapsed = this.lastSpokeAt ? now - this.lastSpokeAt : Infinity;
+    return elapsed >= this.lowIntervalMs;
+  }
+
+  /**
    * Count consecutive MEDIUM entries at the end of history.
    */
   _getConsecutiveMediumCount() {
