@@ -805,6 +805,7 @@ button.connected:hover {
   border-radius: 12px;
   padding: 10px 14px;
   margin: 4px 0;
+  /* intentionally no entrance animation: support should feel calm, not celebratory */
 }
 
 .card-icon {
