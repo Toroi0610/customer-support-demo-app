@@ -399,35 +399,33 @@ const LiveAPIDemo = forwardRef(
 
         clientRef.current.activityHandling = activityHandling;
 
-        if (!enableGrounding) {
-          // Always register camera observation tool
+        // Always register camera observation tool
+        clientRef.current.addFunction(
+          new ReportVisualStateTool((state) => {
+            setVisualState({
+              description: state.description || "",
+              emotion: state.user_emotion || "",
+              items: state.detected_items || "",
+              timestamp: new Date().toLocaleTimeString("ja-JP"),
+            });
+          })
+        );
+
+        // Register persona-specific tools
+        if (persona === "bright_friend" || persona === "mean_neighbor") {
           clientRef.current.addFunction(
-            new ReportVisualStateTool((state) => {
-              setVisualState({
-                description: state.description || "",
-                emotion: state.user_emotion || "",
-                items: state.detected_items || "",
-                timestamp: new Date().toLocaleTimeString("ja-JP"),
-              });
+            new CelebrateMomentTool((message) => {
+              addMessage(message, "celebrate");
             })
           );
+        }
 
-          // Register persona-specific tools
-          if (persona === "bright_friend" || persona === "mean_neighbor") {
-            clientRef.current.addFunction(
-              new CelebrateMomentTool((message) => {
-                addMessage(message, "celebrate");
-              })
-            );
-          }
-
-          if (persona === "bright_friend" || persona === "gentle_teacher") {
-            clientRef.current.addFunction(
-              new OfferSupportTool((message) => {
-                addMessage(message, "support");
-              })
-            );
-          }
+        if (persona === "bright_friend" || persona === "gentle_teacher") {
+          clientRef.current.addFunction(
+            new OfferSupportTool((message) => {
+              addMessage(message, "support");
+            })
+          );
         }
 
         clientRef.current.onReceiveResponse = handleMessage;
