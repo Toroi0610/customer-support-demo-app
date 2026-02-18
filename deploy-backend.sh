@@ -30,7 +30,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --platform managed \
   --region "${REGION}" \
   --allow-unauthenticated \
-  --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID},CORS_ORIGIN=${CORS_ORIGIN}" \
+  --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID},CORS_ORIGIN=${CORS_ORIGIN},GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-},ALLOWED_EMAILS=${ALLOWED_EMAILS:-}" \
   --min-instances 0 \
   --max-instances 3 \
   --timeout 3600
