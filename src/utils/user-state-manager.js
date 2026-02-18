@@ -32,9 +32,9 @@ const EMOTION_MAP = {
 
 export class UserStateManager {
   constructor(options = {}) {
-    this.lowIntervalMs = options.lowIntervalMs || 60000;
-    this.mediumConsecutiveThreshold = options.mediumConsecutiveThreshold || 2;
-    this.historyMaxLength = options.historyMaxLength || 20;
+    this.lowIntervalMs = options.lowIntervalMs ?? 60000;
+    this.mediumConsecutiveThreshold = options.mediumConsecutiveThreshold ?? 2;
+    this.historyMaxLength = options.historyMaxLength ?? 20;
 
     this.emotionHistory = [];
     this.lastSpokeAt = null;

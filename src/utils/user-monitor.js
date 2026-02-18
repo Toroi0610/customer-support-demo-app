@@ -180,15 +180,15 @@ export class UserStateMonitor {
   }
 
   /**
-   * Get the current monitoring state
-   */
-  /**
    * Get the state manager instance (for external nudge control).
    */
   getStateManager() {
     return this.stateManager;
   }
 
+  /**
+   * Get the current monitoring state
+   */
   getState() {
     return {
       isMonitoring: this.isMonitoring,
