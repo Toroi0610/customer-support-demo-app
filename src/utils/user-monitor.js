@@ -18,7 +18,7 @@ export class UserStateMonitor {
    * @param {function} options.onError - Callback for errors
    */
   constructor(options = {}) {
-    this.analysisUrl = options.analysisUrl || "http://localhost:8081/analyze-frame";
+    this.analysisUrl = options.analysisUrl || "http://localhost:8080/analyze-frame";
     this.projectId = options.projectId || "";
     this.model = options.model || "gemini-2.0-flash";
     this.intervalMs = options.intervalMs || 5000;

@@ -31,7 +31,7 @@ const LiveAPIDemo = forwardRef(
 
     // Configuration State
     const [proxyUrl, setProxyUrl] = useState(
-      localStorage.getItem("proxyUrl") || "ws://localhost:8080"
+      localStorage.getItem("proxyUrl") || import.meta.env.VITE_WEBSOCKET_URL || "ws://localhost:8080"
     );
     const [projectId, setProjectId] = useState(
       localStorage.getItem("projectId")
@@ -546,7 +546,11 @@ const LiveAPIDemo = forwardRef(
         const videoEl = videoPreviewMainRef.current;
 
         const monitor = new UserStateMonitor({
-          analysisUrl: "http://localhost:8081/analyze-frame",
+          analysisUrl: (() => {
+            const wsUrl = proxyUrl || import.meta.env.VITE_WEBSOCKET_URL || "ws://localhost:8080";
+            const httpBase = wsUrl.replace(/^ws(s?):\/\//, "http$1://").replace(/\/ws$/, "");
+            return `${httpBase}/analyze-frame`;
+          })(),
           projectId: projectId,
           model: "gemini-2.0-flash",
           intervalMs: 5000,
