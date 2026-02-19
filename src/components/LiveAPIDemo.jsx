@@ -514,7 +514,7 @@ const LiveAPIDemo = forwardRef(
 
       try {
         const baseUrl = proxyUrl.replace("wss://", "https://").replace("ws://", "http://").replace("/ws", "");
-        await fetch(`${baseUrl}/memory/save`, {
+        const response = await fetch(`${baseUrl}/memory/save`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -522,7 +522,11 @@ const LiveAPIDemo = forwardRef(
           },
           body: JSON.stringify({ user_id: userId, persona, transcript, emotions, project_id: projectId }),
         });
-        console.log("Memory saved.");
+        if (!response.ok) {
+          console.warn("Failed to save memory: server returned", response.status);
+        } else {
+          console.log("Memory saved.");
+        }
       } catch (e) {
         console.warn("Failed to save memory:", e);
       }

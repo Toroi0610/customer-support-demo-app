@@ -656,6 +656,8 @@ async def handle_memory_save(request):
         if not summary_data:
             return web.json_response({"error": "Failed to generate summary"}, status=500, headers=headers)
 
+        # Embedding stored for future semantic search (not yet used for retrieval).
+        # Currently get_memories() retrieves by importance + recency.
         embedding = await generate_embedding(summary_data.get("summary", ""), project_id)
 
         db = get_db()
