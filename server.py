@@ -317,7 +317,7 @@ async def proxy_task(
         await destination_websocket.close()
 
 
-async def create_proxy(client_websocket, bearer_token: str, service_url: str) -> None:
+async def create_proxy(client_websocket, bearer_token: str, service_url: str, initial_server_message: dict = None) -> None:
     """Establishes a WebSocket connection to Gemini and creates bidirectional proxy."""
     headers = {
         "Content-Type": "application/json",
@@ -337,6 +337,10 @@ async def create_proxy(client_websocket, bearer_token: str, service_url: str) ->
             ssl=ssl_context
         ) as server_websocket:
             print(f"✅ Connected to Gemini API")
+
+            # Send the (optionally memory-injected) session setup message first
+            if initial_server_message is not None:
+                await server_websocket.send(json.dumps(initial_server_message))
 
             client_to_server_task = asyncio.create_task(
                 proxy_task(client_websocket, server_websocket, is_server=False)
@@ -377,7 +381,7 @@ async def create_proxy(client_websocket, bearer_token: str, service_url: str) ->
             await client_websocket.close(code=1008, reason="Upstream connection failed")
 
 
-async def handle_websocket_client(client_websocket, prefetched_setup: dict = None) -> None:
+async def handle_websocket_client(client_websocket, prefetched_setup: dict = None, prefetched_session: dict = None) -> None:
     """Handles a new WebSocket client connection."""
     print("🔌 New WebSocket client connection...")
     try:
@@ -406,7 +410,7 @@ async def handle_websocket_client(client_websocket, prefetched_setup: dict = Non
             await client_websocket.close(code=1008, reason="Service URL is required")
             return
 
-        await create_proxy(client_websocket, bearer_token, service_url)
+        await create_proxy(client_websocket, bearer_token, service_url, initial_server_message=prefetched_session)
 
     except asyncio.TimeoutError:
         print("⏱️ Timeout waiting for the first message from the client")
@@ -423,11 +427,11 @@ async def handle_websocket_client(client_websocket, prefetched_setup: dict = Non
 # ─── aiohttp Route Handlers ───────────────────────────────────────────────────
 
 async def ws_handler(request):
-    """aiohttp WebSocket upgrade handler — replaces websockets.serve()."""
+    """aiohttp WebSocket upgrade handler."""
     ws = web.WebSocketResponse()
     await ws.prepare(request)
 
-    # Read first message to verify auth before proxying
+    # ── Read first message: service setup (auth + metadata) ───────────────────
     try:
         msg = await asyncio.wait_for(ws.receive(), timeout=10.0)
     except asyncio.TimeoutError:
@@ -444,17 +448,42 @@ async def ws_handler(request):
         await ws.close(code=1008, message=b"Invalid JSON")
         return ws
 
+    # Auth check
     app_password = setup_data.get("app_password", "")
     if not verify_app_password(app_password):
-        # Send explicit error message before closing so the client can detect
-        # auth failure independently of the WebSocket close code (which some
-        # proxies may normalize).
         await ws.send_json({"error": "unauthorized"})
         await ws.close(code=4001, message=b"Unauthorized")
         return ws
 
+    user_id = setup_data.get("user_id", "")
+    persona = setup_data.get("persona", "")
+
+    # ── Read second message: session setup (system_instruction, tools, etc.) ──
+    try:
+        msg2 = await asyncio.wait_for(ws.receive(), timeout=10.0)
+    except asyncio.TimeoutError:
+        await ws.close(code=1008, message=b"Timeout waiting for session setup message")
+        return ws
+
+    if msg2.type not in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY):
+        await ws.close(code=1008, message=b"Expected text for session setup")
+        return ws
+
+    try:
+        session_data = json.loads(msg2.data)
+    except json.JSONDecodeError:
+        await ws.close(code=1008, message=b"Invalid JSON in session setup")
+        return ws
+
+    # ── Fetch memories and inject into system prompt ───────────────────────────
+    if user_id and persona:
+        memories = await get_memories(user_id, persona, limit=3)
+        if memories:
+            inject_memories_into_setup(session_data, memories)
+            print(f"💭 Injected {len(memories)} memories for {user_id}/{persona}")
+
     adapter = AiohttpWSAdapter(ws)
-    await handle_websocket_client(adapter, prefetched_setup=setup_data)
+    await handle_websocket_client(adapter, prefetched_setup=setup_data, prefetched_session=session_data)
     return ws
 
 
