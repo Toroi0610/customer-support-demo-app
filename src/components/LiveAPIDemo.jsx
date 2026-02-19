@@ -1330,13 +1330,15 @@ const LiveAPIDemo = forwardRef(
           <div className="modal-overlay" onClick={() => setShowMemoriesModal(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxHeight: "70vh", overflowY: "auto", minWidth: "320px" }}>
               <h2>🧠 過去の記憶</h2>
-              {memoriesList.length === 0 ? (
+              {memoriesLoading ? (
+                <p>読み込み中...</p>
+              ) : memoriesList.length === 0 ? (
                 <p>まだ記憶がありません。</p>
               ) : (
                 memoriesList.map((m, i) => {
-                  const when = m.days_ago === 0 ? "今日" : m.days_ago === 1 ? "昨日" : `${m.days_ago}日前`;
+                  const when = m.days_ago == null ? "日付不明" : m.days_ago === 0 ? "今日" : m.days_ago === 1 ? "昨日" : `${m.days_ago}日前`;
                   return (
-                    <div key={i} style={{ borderTop: i > 0 ? "1px solid #eee" : "none", paddingTop: i > 0 ? "0.75rem" : 0, marginTop: i > 0 ? "0.75rem" : 0 }}>
+                    <div key={m.timestamp || i} style={{ borderTop: i > 0 ? "1px solid #eee" : "none", paddingTop: i > 0 ? "0.75rem" : 0, marginTop: i > 0 ? "0.75rem" : 0 }}>
                       <div style={{ fontSize: "0.8rem", color: "#888", marginBottom: "0.25rem" }}>
                         📌 {when}　<span style={{ background: "#f0f0f0", borderRadius: "4px", padding: "1px 6px" }}>{m.emotion}</span>
                       </div>
