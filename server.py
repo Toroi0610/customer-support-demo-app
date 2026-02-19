@@ -559,7 +559,12 @@ async def handle_memory_list(request):
 
     user_id = request.rel_url.query.get("user_id", "").strip()
     persona = request.rel_url.query.get("persona", "").strip()
-    limit = int(request.rel_url.query.get("limit", "10"))
+    try:
+        limit = int(request.rel_url.query.get("limit", "10"))
+    except ValueError:
+        return web.json_response(
+            {"error": "limit must be an integer"}, status=400, headers=headers
+        )
 
     if not user_id or not persona:
         return web.json_response(

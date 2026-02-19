@@ -75,3 +75,11 @@ class TestHandleMemoryList:
                 headers={"Authorization": "Bearer pw"},
             )
         mock.assert_called_once_with("u1", "bright_friend", 5)
+
+    async def test_invalid_limit_returns_400(self, client):
+        with patch.object(server, "APP_PASSWORD", "pw"):
+            resp = await client.get(
+                "/memory/list?user_id=u1&persona=bright_friend&limit=abc",
+                headers={"Authorization": "Bearer pw"},
+            )
+        assert resp.status == 400
