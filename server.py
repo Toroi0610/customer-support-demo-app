@@ -23,11 +23,203 @@ from websockets.exceptions import ConnectionClosed
 import google.auth
 from google.auth.transport.requests import Request
 
+import math
+import uuid
+from datetime import datetime, timezone
+from google.cloud import firestore
+
 DEBUG = False  # Set to True for verbose logging
 PORT = int(os.environ.get("PORT", 8080))
 
 # Authentication
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+
+# ─── Firestore client (lazy init) ─────────────────────────────────────────────
+_db = None
+
+def get_db():
+    global _db
+    if _db is None:
+        _db = firestore.AsyncClient()
+    return _db
+
+
+# ─── Memory utilities ─────────────────────────────────────────────────────────
+
+def cosine_similarity(a: list, b: list) -> float:
+    """Compute cosine similarity between two vectors."""
+    dot = sum(x * y for x, y in zip(a, b))
+    mag_a = math.sqrt(sum(x * x for x in a))
+    mag_b = math.sqrt(sum(x * x for x in b))
+    if mag_a == 0 or mag_b == 0:
+        return 0.0
+    return dot / (mag_a * mag_b)
+
+
+def format_memories_for_prompt(memories: list) -> str:
+    """Format a list of memory dicts into a Japanese prompt block.
+
+    Each memory dict must have: summary, emotion, importance, days_ago.
+    Returns empty string when memories list is empty.
+    """
+    if not memories:
+        return ""
+    lines = ["[過去の記憶]"]
+    for m in memories:
+        days = m.get("days_ago", 0)
+        if days == 0:
+            when = "今日"
+        elif days == 1:
+            when = "昨日"
+        else:
+            when = f"{days}日前"
+        line = f"- {when}: {m['summary']}（感情: {m['emotion']}、重要度: {m['importance']:.1f}）"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def inject_memories_into_setup(session_data: dict, memories: list) -> None:
+    """Inject formatted memories into session_data system_instruction in-place.
+
+    No-op when memories is empty or session_data has no setup key.
+    """
+    if not memories:
+        return
+    try:
+        parts = session_data["setup"]["system_instruction"]["parts"]
+    except (KeyError, IndexError, TypeError):
+        return
+    memory_block = format_memories_for_prompt(memories)
+    if memory_block:
+        parts[0]["text"] = parts[0]["text"] + "\n\n" + memory_block
+
+
+async def generate_embedding(text: str, project_id: str) -> list:
+    """Generate text embedding using Vertex AI text-embedding-004.
+
+    Returns list of floats (768-dim), or empty list on failure.
+    """
+    token = generate_access_token()
+    if not token:
+        return []
+    url = (
+        f"https://us-central1-aiplatform.googleapis.com/v1/projects/{project_id}"
+        f"/locations/us-central1/publishers/google/models/text-embedding-004:predict"
+    )
+    body = {"instances": [{"content": text}]}
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                url,
+                json=body,
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                ssl=ssl_context,
+            ) as resp:
+                if resp.status != 200:
+                    print(f"Embedding API error: {resp.status}")
+                    return []
+                data = await resp.json()
+                return data["predictions"][0]["embeddings"]["values"]
+    except Exception as e:
+        print(f"Error generating embedding: {e}")
+        return []
+
+
+SUMMARY_SYSTEM_INSTRUCTION = """You are a memory summarizer for an AI companion app.
+Given a conversation transcript between a user and an AI companion, generate a concise summary in Japanese.
+Respond with ONLY a valid JSON object (no markdown, no code blocks).
+
+Provide:
+1. "summary": 100-200 character summary of the key moments in the conversation in Japanese
+2. "emotion": The user's dominant emotion during this conversation in Japanese (e.g., "楽しそう", "疲れている", "嬉しそう", "落ち込んでいた", "穏やか")
+3. "importance": A float 0.0-1.0 rating how emotionally significant this conversation was (0.0 = routine, 1.0 = very significant)
+4. "keywords": Array of 2-5 key topics or themes from the conversation in Japanese"""
+
+
+async def generate_summary(transcript: list, emotions: list, persona: str, project_id: str) -> dict:
+    """Generate a memory summary from a transcript using Gemini.
+
+    transcript: list of {role, text} dicts
+    Returns dict with summary, emotion, importance, keywords; or None on failure.
+    """
+    token = generate_access_token()
+    if not token:
+        return None
+
+    transcript_text = "\n".join(
+        f"{t.get('role', 'unknown')}: {t.get('text', '')}"
+        for t in transcript
+        if t.get("text", "").strip()
+    )
+    if not transcript_text.strip():
+        return None
+
+    emotion_note = f"\n観察された感情イベント: {', '.join(emotions)}" if emotions else ""
+    user_prompt = f"以下の会話を要約してください。\n\n{transcript_text}{emotion_note}"
+
+    url = (
+        f"https://us-central1-aiplatform.googleapis.com/v1/projects/{project_id}"
+        f"/locations/us-central1/publishers/google/models/gemini-2.0-flash:generateContent"
+    )
+    body = {
+        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+        "systemInstruction": {"parts": [{"text": SUMMARY_SYSTEM_INSTRUCTION}]},
+        "generationConfig": {"temperature": 0.3, "responseMimeType": "application/json"},
+    }
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                url,
+                json=body,
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                ssl=ssl_context,
+            ) as resp:
+                if resp.status != 200:
+                    print(f"Summary Gemini API error: {resp.status}")
+                    return None
+                result = await resp.json()
+                text_response = result["candidates"][0]["content"]["parts"][0]["text"]
+                return json.loads(text_response)
+    except Exception as e:
+        print(f"Error generating summary: {e}")
+        return None
+
+
+async def get_memories(user_id: str, persona: str, limit: int = 3) -> list:
+    """Fetch top memories for a user+persona from Firestore.
+
+    Returns list of memory dicts sorted by importance desc, recency desc.
+    Each dict has: summary, emotion, importance, days_ago.
+    """
+    if not user_id or not persona:
+        return []
+    try:
+        db = get_db()
+        col_ref = db.collection("memories").document(user_id).collection(persona)
+        docs = col_ref.order_by("importance", direction=firestore.Query.DESCENDING).limit(limit * 3).stream()
+        memories = []
+        now = datetime.now(timezone.utc)
+        async for doc in docs:
+            data = doc.to_dict()
+            ts = data.get("timestamp")
+            if ts:
+                days_ago = max(0, (now - ts).days)
+            else:
+                days_ago = 0
+            memories.append({
+                "summary": data.get("summary", ""),
+                "emotion": data.get("emotion", ""),
+                "importance": data.get("importance", 0.5),
+                "days_ago": days_ago,
+            })
+        # Sort: importance desc, then recency desc (days_ago asc)
+        memories.sort(key=lambda m: (-m["importance"], m["days_ago"]))
+        return memories[:limit]
+    except Exception as e:
+        print(f"Error fetching memories: {e}")
+        return []
 
 
 def generate_access_token():
@@ -393,6 +585,68 @@ async def handle_analyze_frame(request):
         return web.json_response({"error": str(e)}, status=500, headers=headers)
 
 
+async def handle_memory_save(request):
+    """HTTP endpoint to save a session memory."""
+    cors_origin = os.environ.get("CORS_ORIGIN", "*")
+    headers = {
+        "Access-Control-Allow-Origin": cors_origin,
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    }
+
+    if request.method == "OPTIONS":
+        return web.Response(headers=headers)
+
+    auth_header = request.headers.get("Authorization", "")
+    password = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+    if not verify_app_password(password):
+        return web.json_response({"error": "Unauthorized"}, status=401, headers=headers)
+
+    try:
+        data = await request.json()
+        user_id = data.get("user_id", "").strip()
+        persona = data.get("persona", "").strip()
+        transcript = data.get("transcript", [])
+        emotions = data.get("emotions", [])
+        project_id = data.get("project_id", os.environ.get("GOOGLE_CLOUD_PROJECT", ""))
+
+        if not user_id or not persona:
+            return web.json_response({"error": "user_id and persona are required"}, status=400, headers=headers)
+        if not transcript:
+            return web.json_response({"error": "transcript is required"}, status=400, headers=headers)
+        if not project_id:
+            return web.json_response({"error": "project_id is required"}, status=400, headers=headers)
+
+        summary_data = await generate_summary(transcript, emotions, persona, project_id)
+        if not summary_data:
+            return web.json_response({"error": "Failed to generate summary"}, status=500, headers=headers)
+
+        embedding = await generate_embedding(summary_data["summary"], project_id)
+
+        db = get_db()
+        memory_id = str(uuid.uuid4())
+        doc_ref = db.collection("memories").document(user_id).collection(persona).document(memory_id)
+        await doc_ref.set({
+            "summary": summary_data.get("summary", ""),
+            "emotion": summary_data.get("emotion", ""),
+            "importance": float(summary_data.get("importance", 0.5)),
+            "keywords": summary_data.get("keywords", []),
+            "embedding": embedding,
+            "persona": persona,
+            "timestamp": firestore.SERVER_TIMESTAMP,
+        })
+
+        print(f"✅ Memory saved: {memory_id} for {user_id}/{persona}")
+        return web.json_response(
+            {"memory_id": memory_id, "summary": summary_data.get("summary", "")},
+            headers=headers
+        )
+
+    except Exception as e:
+        print(f"Error in handle_memory_save: {e}")
+        return web.json_response({"error": str(e)}, status=500, headers=headers)
+
+
 async def main():
     print(f"""
 ╔════════════════════════════════════════════════════════════╗
@@ -413,6 +667,8 @@ async def main():
     app.router.add_get("/ws", ws_handler)
     app.router.add_post("/analyze-frame", handle_analyze_frame)
     app.router.add_options("/analyze-frame", handle_analyze_frame)
+    app.router.add_post("/memory/save", handle_memory_save)
+    app.router.add_options("/memory/save", handle_memory_save)
 
     runner = web.AppRunner(app)
     await runner.setup()
