@@ -84,7 +84,7 @@ async def test_save_memory_works_without_embedding(mem):
     """Falls back gracefully when embedding returns empty (no Vertex AI)."""
     with patch("memory_mcp.store._generate_embedding", AsyncMock(return_value=[])):
         memory_id = await save_memory(
-            "u1", "p1", "記憶", "楽しそう", 0.7, [], chroma_client=mem
+            "u_noembed", "p_noembed", "記憶", "楽しそう", 0.7, [], chroma_client=mem
         )
     assert isinstance(memory_id, str)
 
@@ -94,8 +94,8 @@ async def test_save_memory_works_without_embedding(mem):
 @pytest.mark.asyncio
 async def test_recall_returns_saved_memory(mem):
     with patch("memory_mcp.store._generate_embedding", AsyncMock(return_value=FAKE_EMBEDDING)):
-        await save_memory("u1", "p1", "疲れていた", "疲れている", 0.7, [], chroma_client=mem)
-        results = await recall_memories("u1", "p1", "今日の状態", chroma_client=mem)
+        await save_memory("u_recall1", "p_recall1", "疲れていた", "疲れている", 0.7, [], chroma_client=mem)
+        results = await recall_memories("u_recall1", "p_recall1", "今日の状態", chroma_client=mem)
     assert len(results) == 1
     assert results[0]["summary"] == "疲れていた"
     assert results[0]["emotion"] == "疲れている"
@@ -105,7 +105,7 @@ async def test_recall_returns_saved_memory(mem):
 
 @pytest.mark.asyncio
 async def test_recall_empty_collection_returns_empty(mem):
-    results = await recall_memories("u1", "p1", "context", chroma_client=mem)
+    results = await recall_memories("u_empty1", "p_empty1", "context", chroma_client=mem)
     assert results == []
 
 
@@ -128,9 +128,9 @@ async def test_recall_respects_limit(mem):
 async def test_recall_falls_back_when_no_embedding(mem):
     """Returns recent memories when embedding generation fails."""
     with patch("memory_mcp.store._generate_embedding", AsyncMock(return_value=[])):
-        await save_memory("u1", "p1", "古い話", "穏やか", 0.5, [], chroma_client=mem)
+        await save_memory("u_fallback1", "p_fallback1", "古い話", "穏やか", 0.5, [], chroma_client=mem)
     with patch("memory_mcp.store._generate_embedding", AsyncMock(return_value=[])):
-        results = await recall_memories("u1", "p1", "context", chroma_client=mem)
+        results = await recall_memories("u_fallback1", "p_fallback1", "context", chroma_client=mem)
     assert len(results) == 1
 
 
