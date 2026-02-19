@@ -565,6 +565,10 @@ async def handle_memory_list(request):
         return web.json_response(
             {"error": "limit must be an integer"}, status=400, headers=headers
         )
+    if limit <= 0:
+        return web.json_response(
+            {"error": "limit must be a positive integer"}, status=400, headers=headers
+        )
 
     if not user_id or not persona:
         return web.json_response(

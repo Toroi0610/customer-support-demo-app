@@ -83,3 +83,19 @@ class TestHandleMemoryList:
                 headers={"Authorization": "Bearer pw"},
             )
         assert resp.status == 400
+
+    async def test_zero_limit_returns_400(self, client):
+        with patch.object(server, "APP_PASSWORD", "pw"):
+            resp = await client.get(
+                "/memory/list?user_id=u1&persona=bright_friend&limit=0",
+                headers={"Authorization": "Bearer pw"},
+            )
+        assert resp.status == 400
+
+    async def test_negative_limit_returns_400(self, client):
+        with patch.object(server, "APP_PASSWORD", "pw"):
+            resp = await client.get(
+                "/memory/list?user_id=u1&persona=bright_friend&limit=-1",
+                headers={"Authorization": "Bearer pw"},
+            )
+        assert resp.status == 400
