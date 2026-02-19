@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- ヘッドセットアイコン（カスタマーサポートのシンボル）-->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,20 C37.43,20 24,33.43 24,50 L24,60 C24,63.31 26.69,66 30,66 L36,66 C36,66 36,50 36,50 C36,40.06 44.06,32 54,32 C63.94,32 72,40.06 72,50 L72,66 L78,66 C81.31,66 84,63.31 84,60 L84,50 C84,33.43 70.57,20 54,20Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,56 L24,66 C24,69.31 26.69,72 30,72 L36,72 L36,50 C36,50 24,50 24,56Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M72,50 L72,72 L78,72 C81.31,72 84,69.31 84,66 L84,56 C84,50 72,50 72,50Z" />
+</vector>

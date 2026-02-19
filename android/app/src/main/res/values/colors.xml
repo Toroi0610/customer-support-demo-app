@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#1976D2</color>
+    <color name="primary_dark">#1565C0</color>
+    <color name="primary_light">#E3F2FD</color>
+    <color name="secondary">#FF6F00</color>
+    <color name="background_primary">#F5F7FA</color>
+    <color name="background_secondary">#EEF2F7</color>
+    <color name="text_primary">#1A1A2E</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="user_message_bg">#1976D2</color>
+    <color name="agent_message_bg">#FFFFFF</color>
+    <color name="system_message_bg">#E8EDF2</color>
+</resources>
