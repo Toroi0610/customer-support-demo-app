@@ -2,6 +2,7 @@
 """ChromaDB memory store with Vertex AI embeddings."""
 
 import asyncio
+import hashlib
 import json
 import os
 import ssl
@@ -14,7 +15,6 @@ import chromadb
 import google.auth
 from google.auth.transport.requests import Request
 
-CHROMA_PERSIST_PATH = os.environ.get("CHROMA_PERSIST_PATH", "./chroma_data")
 GOOGLE_CLOUD_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
 
 _chroma_client = None
@@ -23,16 +23,27 @@ _chroma_client = None
 def _get_chroma_client():
     global _chroma_client
     if _chroma_client is None:
-        _chroma_client = chromadb.PersistentClient(path=CHROMA_PERSIST_PATH)
+        path = os.environ.get("CHROMA_PERSIST_PATH", "./chroma_data")
+        if path.startswith("/tmp"):
+            print(f"⚠️  CHROMA_PERSIST_PATH={path} is ephemeral — memories will be lost on container restart")
+        _chroma_client = chromadb.PersistentClient(path=path)
     return _chroma_client
+
+
+def _collection_name(user_id: str, persona: str) -> str:
+    """Build a ChromaDB-safe collection name (max 63 chars, no collisions)."""
+    raw = f"memories_{user_id}_{persona}"
+    if len(raw) <= 63:
+        return raw
+    digest = hashlib.sha256(raw.encode()).hexdigest()[:16]
+    return f"mem_{digest}"
 
 
 def _get_collection(user_id: str, persona: str, client=None):
     """Get or create a ChromaDB collection for user+persona."""
     if client is None:
         client = _get_chroma_client()
-    name = f"memories_{user_id}_{persona}"[:63]
-    return client.get_or_create_collection(name=name)
+    return client.get_or_create_collection(name=_collection_name(user_id, persona))
 
 
 def _days_ago(timestamp_iso: str) -> int:
@@ -166,15 +177,23 @@ async def recall_memories(
             )
             docs = results["documents"][0]
             metas = results["metadatas"][0]
-        else:
-            raw = await asyncio.to_thread(collection.get, include=["documents", "metadatas"])
-            docs = raw["documents"][:n]
-            metas = raw["metadatas"][:n]
-    else:
-        raw = await asyncio.to_thread(collection.get, include=["documents", "metadatas"])
-        docs = raw["documents"][:n]
-        metas = raw["metadatas"][:n]
+            return [
+                {
+                    "summary": doc,
+                    "emotion": meta.get("emotion", ""),
+                    "importance": float(meta.get("importance", 0.5)),
+                    "days_ago": _days_ago(meta.get("timestamp", "")),
+                }
+                for doc, meta in zip(docs, metas)
+            ]
 
+    # Fallback: return most-recent memories sorted by timestamp descending
+    raw = await asyncio.to_thread(collection.get, include=["documents", "metadatas"])
+    pairs = sorted(
+        zip(raw["documents"], raw["metadatas"]),
+        key=lambda x: x[1].get("timestamp", ""),
+        reverse=True,
+    )
     return [
         {
             "summary": doc,
@@ -182,7 +201,7 @@ async def recall_memories(
             "importance": float(meta.get("importance", 0.5)),
             "days_ago": _days_ago(meta.get("timestamp", "")),
         }
-        for doc, meta in zip(docs, metas)
+        for doc, meta in pairs[:n]
     ]
 
 

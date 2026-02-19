@@ -140,8 +140,12 @@ async def generate_summary(transcript: list, emotions: list, persona: str, proje
 
 
 async def get_memories(user_id: str, persona: str, limit: int = 3) -> list:
-    """Fetch relevant memories for a user+persona from ChromaDB."""
-    return await memory_store.recall_memories(user_id, persona, limit=limit)
+    """Fetch relevant memories for a user+persona from ChromaDB.
+
+    Uses persona as the semantic search context so the most relevant memories
+    for this interaction style are retrieved.
+    """
+    return await memory_store.recall_memories(user_id, persona, context=persona, limit=limit)
 
 
 def generate_access_token():
