@@ -540,6 +540,40 @@ async def handle_analyze_frame(request):
         return web.json_response({"error": str(e)}, status=500, headers=headers)
 
 
+async def handle_memory_list(request):
+    """HTTP endpoint to list recent memories for a user+persona."""
+    cors_origin = os.environ.get("CORS_ORIGIN", "*")
+    headers = {
+        "Access-Control-Allow-Origin": cors_origin,
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    }
+
+    if request.method == "OPTIONS":
+        return web.Response(headers=headers)
+
+    auth_header = request.headers.get("Authorization", "")
+    password = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+    if not verify_app_password(password):
+        return web.json_response({"error": "Unauthorized"}, status=401, headers=headers)
+
+    user_id = request.rel_url.query.get("user_id", "").strip()
+    persona = request.rel_url.query.get("persona", "").strip()
+    limit = int(request.rel_url.query.get("limit", "10"))
+
+    if not user_id or not persona:
+        return web.json_response(
+            {"error": "user_id and persona are required"}, status=400, headers=headers
+        )
+
+    try:
+        memories = await memory_store.list_recent_memories(user_id, persona, limit)
+        return web.json_response({"memories": memories}, headers=headers)
+    except Exception as e:
+        print(f"Error in handle_memory_list: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500, headers=headers)
+
+
 async def handle_memory_save(request):
     """HTTP endpoint to save a session memory."""
     cors_origin = os.environ.get("CORS_ORIGIN", "*")
@@ -619,6 +653,8 @@ async def main():
     app.router.add_get("/ws", ws_handler)
     app.router.add_post("/analyze-frame", handle_analyze_frame)
     app.router.add_options("/analyze-frame", handle_analyze_frame)
+    app.router.add_get("/memory/list", handle_memory_list)
+    app.router.add_options("/memory/list", handle_memory_list)
     app.router.add_post("/memory/save", handle_memory_save)
     app.router.add_options("/memory/save", handle_memory_save)
 
