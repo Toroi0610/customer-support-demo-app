@@ -212,6 +212,11 @@ const LiveAPIDemo = forwardRef(
       message: "",
     });
 
+    // Memories Modal State
+    const [showMemoriesModal, setShowMemoriesModal] = useState(false);
+    const [memoriesList, setMemoriesList] = useState([]);
+    const [memoriesLoading, setMemoriesLoading] = useState(false);
+
     // Configuration State
     const [proxyUrl, setProxyUrl] = useState(
       import.meta.env.VITE_WEBSOCKET_URL || "wss://gemini-proxy-5xcnlqsowa-an.a.run.app/ws"
@@ -529,6 +534,28 @@ const LiveAPIDemo = forwardRef(
         }
       } catch (e) {
         console.warn("Failed to save memory:", e);
+      }
+    };
+
+    const fetchMemories = async () => {
+      setMemoriesLoading(true);
+      try {
+        const baseUrl = proxyUrl.replace("wss://", "https://").replace("ws://", "http://").replace("/ws", "");
+        const response = await fetch(
+          `${baseUrl}/memory/list?user_id=${encodeURIComponent(userId)}&persona=${encodeURIComponent(persona)}&limit=10`,
+          { headers: { Authorization: `Bearer ${appPassword}` } }
+        );
+        if (!response.ok) {
+          alert(`記憶の取得に失敗しました (${response.status})`);
+          return;
+        }
+        const data = await response.json();
+        setMemoriesList(data.memories || []);
+        setShowMemoriesModal(true);
+      } catch (e) {
+        alert(`記憶の取得に失敗しました: ${e.message}`);
+      } finally {
+        setMemoriesLoading(false);
       }
     };
 
@@ -924,6 +951,15 @@ const LiveAPIDemo = forwardRef(
             <div className="dropdown">
               <button className="dropbtn">設定 ▾</button>
               <div className="dropdown-content config-dropdown">
+                <div className="control-group">
+                  <button
+                    onClick={fetchMemories}
+                    disabled={memoriesLoading}
+                    style={{ width: "100%" }}
+                  >
+                    {memoriesLoading ? "読み込み中..." : "🧠 記憶を見る"}
+                  </button>
+                </div>
                 {/* API Configuration Section */}
                 <div className="control-group">
                   <h3>接続設定</h3>
@@ -1285,6 +1321,31 @@ const LiveAPIDemo = forwardRef(
               {modalContent.title && <h2>{modalContent.title}</h2>}
               <p>{modalContent.message}</p>
               <button onClick={() => setModalVisible(false)}>閉じる</button>
+            </div>
+          </div>
+        )}
+
+        {/* Memories Modal */}
+        {showMemoriesModal && (
+          <div className="modal-overlay" onClick={() => setShowMemoriesModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxHeight: "70vh", overflowY: "auto", minWidth: "320px" }}>
+              <h2>🧠 過去の記憶</h2>
+              {memoriesList.length === 0 ? (
+                <p>まだ記憶がありません。</p>
+              ) : (
+                memoriesList.map((m, i) => {
+                  const when = m.days_ago === 0 ? "今日" : m.days_ago === 1 ? "昨日" : `${m.days_ago}日前`;
+                  return (
+                    <div key={i} style={{ borderTop: i > 0 ? "1px solid #eee" : "none", paddingTop: i > 0 ? "0.75rem" : 0, marginTop: i > 0 ? "0.75rem" : 0 }}>
+                      <div style={{ fontSize: "0.8rem", color: "#888", marginBottom: "0.25rem" }}>
+                        📌 {when}　<span style={{ background: "#f0f0f0", borderRadius: "4px", padding: "1px 6px" }}>{m.emotion}</span>
+                      </div>
+                      <div>{m.summary}</div>
+                    </div>
+                  );
+                })
+              )}
+              <button onClick={() => setShowMemoriesModal(false)} style={{ marginTop: "1rem" }}>閉じる</button>
             </div>
           </div>
         )}
