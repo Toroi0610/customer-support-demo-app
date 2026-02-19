@@ -189,6 +189,15 @@ const LiveAPIDemo = forwardRef(
   ({ onConnectionChange, onAudioStreamChange }, ref) => {
     // Auth State
     const [appPassword, setAppPassword] = useState(null);
+    // Generate a stable user ID for memory storage
+    const [userId] = useState(() => {
+      let id = localStorage.getItem("userId");
+      if (!id) {
+        id = crypto.randomUUID();
+        localStorage.setItem("userId", id);
+      }
+      return id;
+    });
     const [passwordInput, setPasswordInput] = useState("");
     const [authError, setAuthError] = useState(null);
 
@@ -492,6 +501,33 @@ const LiveAPIDemo = forwardRef(
       }
     };
 
+    const saveMemory = async () => {
+      const transcript = chatMessages
+        .filter((m) => m.type === "user-transcript" || m.type === "assistant")
+        .map((m) => ({ role: m.type === "user-transcript" ? "user" : "assistant", text: m.text || m.data || "" }));
+
+      if (transcript.length < 2) return; // Nothing worth saving
+
+      const emotions = chatMessages
+        .filter((m) => m.type === "celebrate" || m.type === "support")
+        .map((m) => (m.type === "celebrate" ? "楽しそう" : "疲れている"));
+
+      try {
+        const baseUrl = proxyUrl.replace("wss://", "https://").replace("ws://", "http://").replace("/ws", "");
+        await fetch(`${baseUrl}/memory/save`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${appPassword}`,
+          },
+          body: JSON.stringify({ user_id: userId, persona, transcript, emotions, project_id: projectId }),
+        });
+        console.log("Memory saved.");
+      } catch (e) {
+        console.warn("Failed to save memory:", e);
+      }
+    };
+
     // Cleanup on unmount
     useEffect(() => {
       return () => {
@@ -511,6 +547,8 @@ const LiveAPIDemo = forwardRef(
         clientRef.current = new GeminiLiveAPI(proxyUrl, projectId, model);
 
         clientRef.current.appPassword = appPassword;
+        clientRef.current.userId = userId;
+        clientRef.current.persona = persona;
         clientRef.current.systemInstructions = systemInstructions;
         clientRef.current.inputAudioTranscription = enableInputTranscription;
         clientRef.current.outputAudioTranscription = enableOutputTranscription;
@@ -1113,7 +1151,7 @@ const LiveAPIDemo = forwardRef(
             </div>
 
             <button
-              onClick={connected ? disconnect : connect}
+              onClick={connected ? async () => { await saveMemory(); disconnect(); } : connect}
               className={connected ? "active connected" : ""}
             >
               {connected ? "切断" : "接続"}
