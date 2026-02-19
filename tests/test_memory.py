@@ -39,6 +39,21 @@ class TestFormatMemoriesForPrompt:
         assert "A" in result
         assert "B" in result
 
+    def test_today_label(self):
+        memories = [{"summary": "今日話した", "emotion": "楽しそう", "importance": 0.8, "days_ago": 0}]
+        result = server.format_memories_for_prompt(memories)
+        assert "今日" in result
+
+    def test_yesterday_label(self):
+        memories = [{"summary": "昨日話した", "emotion": "楽しそう", "importance": 0.8, "days_ago": 1}]
+        result = server.format_memories_for_prompt(memories)
+        assert "昨日" in result
+
+    def test_missing_importance_uses_default(self):
+        memories = [{"summary": "話した", "emotion": "楽しそう", "days_ago": 2}]  # no importance key
+        result = server.format_memories_for_prompt(memories)
+        assert "話した" in result  # should not raise KeyError
+
 
 class TestInjectMemoriesIntoSetup:
     def test_injects_into_system_instruction(self):
@@ -67,3 +82,21 @@ class TestInjectMemoriesIntoSetup:
         session_data = {"other": "data"}
         server.inject_memories_into_setup(session_data, [{"summary": "x", "emotion": "y", "importance": 0.5, "days_ago": 1}])
         assert "setup" not in session_data
+
+    def test_no_op_when_parts_empty(self):
+        session_data = {
+            "setup": {
+                "system_instruction": {"parts": []}
+            }
+        }
+        # Should not raise — no-op on IndexError
+        server.inject_memories_into_setup(session_data, [{"summary": "x", "emotion": "y", "importance": 0.5, "days_ago": 1}])
+
+    def test_no_op_when_part_has_no_text_key(self):
+        session_data = {
+            "setup": {
+                "system_instruction": {"parts": [{"other": "data"}]}
+            }
+        }
+        # Should not raise — no-op on KeyError
+        server.inject_memories_into_setup(session_data, [{"summary": "x", "emotion": "y", "importance": 0.5, "days_ago": 1}])

@@ -73,7 +73,7 @@ def format_memories_for_prompt(memories: list) -> str:
             when = "昨日"
         else:
             when = f"{days}日前"
-        line = f"- {when}: {m['summary']}（感情: {m['emotion']}、重要度: {m['importance']:.1f}）"
+        line = f"- {when}: {m.get('summary', '')}（感情: {m.get('emotion', '')}、重要度: {m.get('importance', 0.5):.1f}）"
         lines.append(line)
     return "\n".join(lines)
 
@@ -87,11 +87,11 @@ def inject_memories_into_setup(session_data: dict, memories: list) -> None:
         return
     try:
         parts = session_data["setup"]["system_instruction"]["parts"]
+        memory_block = format_memories_for_prompt(memories)
+        if memory_block:
+            parts[0]["text"] = parts[0]["text"] + "\n\n" + memory_block
     except (KeyError, IndexError, TypeError):
         return
-    memory_block = format_memories_for_prompt(memories)
-    if memory_block:
-        parts[0]["text"] = parts[0]["text"] + "\n\n" + memory_block
 
 
 async def generate_embedding(text: str, project_id: str) -> list:
@@ -181,7 +181,11 @@ async def generate_summary(transcript: list, emotions: list, persona: str, proje
                     return None
                 result = await resp.json()
                 text_response = result["candidates"][0]["content"]["parts"][0]["text"]
-                return json.loads(text_response)
+                parsed = json.loads(text_response)
+                if not isinstance(parsed, dict) or "summary" not in parsed:
+                    print(f"Unexpected summary format from Gemini: {parsed}")
+                    return None
+                return parsed
     except Exception as e:
         print(f"Error generating summary: {e}")
         return None
@@ -607,6 +611,8 @@ async def handle_memory_save(request):
         user_id = data.get("user_id", "").strip()
         persona = data.get("persona", "").strip()
         transcript = data.get("transcript", [])
+        if not isinstance(transcript, list):
+            return web.json_response({"error": "transcript must be a list"}, status=400, headers=headers)
         emotions = data.get("emotions", [])
         project_id = data.get("project_id", os.environ.get("GOOGLE_CLOUD_PROJECT", ""))
 
@@ -621,7 +627,7 @@ async def handle_memory_save(request):
         if not summary_data:
             return web.json_response({"error": "Failed to generate summary"}, status=500, headers=headers)
 
-        embedding = await generate_embedding(summary_data["summary"], project_id)
+        embedding = await generate_embedding(summary_data.get("summary", ""), project_id)
 
         db = get_db()
         memory_id = str(uuid.uuid4())
@@ -644,7 +650,7 @@ async def handle_memory_save(request):
 
     except Exception as e:
         print(f"Error in handle_memory_save: {e}")
-        return web.json_response({"error": str(e)}, status=500, headers=headers)
+        return web.json_response({"error": "Internal server error"}, status=500, headers=headers)
 
 
 async def main():
