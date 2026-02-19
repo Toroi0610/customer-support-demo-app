@@ -135,6 +135,8 @@ export class GeminiLiveAPI {
     this.functions = [];
     this.functionsMap = {};
     this.appPassword = null;
+    this.userId = null;
+    this.persona = null;
     this.previousImage = null;
     this.totalBytesSent = 0;
 
@@ -312,6 +314,8 @@ export class GeminiLiveAPI {
     const serviceSetupMessage = {
       service_url: this.serviceUrl,
       ...(this.appPassword && { app_password: this.appPassword }),
+      ...(this.userId && { user_id: this.userId }),
+      ...(this.persona && { persona: this.persona }),
     };
     this.sendMessage(serviceSetupMessage);
 
