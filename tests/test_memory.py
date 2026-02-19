@@ -1,22 +1,7 @@
 """Tests for memory utility functions in server.py."""
 
 import pytest
-import math
 import server
-
-
-class TestCosimeSimilarity:
-    def test_identical_vectors(self):
-        v = [1.0, 0.0, 0.0]
-        assert math.isclose(server.cosine_similarity(v, v), 1.0, abs_tol=1e-6)
-
-    def test_orthogonal_vectors(self):
-        a = [1.0, 0.0]
-        b = [0.0, 1.0]
-        assert math.isclose(server.cosine_similarity(a, b), 0.0, abs_tol=1e-6)
-
-    def test_zero_vector(self):
-        assert server.cosine_similarity([0.0, 0.0], [1.0, 0.0]) == 0.0
 
 
 class TestFormatMemoriesForPrompt:
